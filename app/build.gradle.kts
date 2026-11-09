@@ -29,8 +29,8 @@ android {
         applicationId = "dev.redfox.alarmzy"
         minSdk = 31
         targetSdk = 36
-        versionCode = 5
-        versionName = "2.2.0"
+        versionCode = 6
+        versionName = "2.2.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

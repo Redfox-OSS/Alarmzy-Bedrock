@@ -50,6 +50,9 @@ import androidx.compose.ui.unit.sp
 import dev.redfox.alarmzy.R
 import dev.redfox.alarmzy.domain.model.AccentColor
 import dev.redfox.alarmzy.domain.model.DarkVariant
+import dev.redfox.alarmzy.alarm.BackgroundRestrictions
+import dev.redfox.alarmzy.presentation.livealerts.BackgroundRunFooter
+import dev.redfox.alarmzy.presentation.livealerts.BackgroundRunRows
 import dev.redfox.alarmzy.presentation.livealerts.LiveAlertsSettingsFooter
 import dev.redfox.alarmzy.presentation.livealerts.LiveAlertsSettingsRows
 import dev.redfox.obsidian.navigation.floatingNavClearance
@@ -212,6 +215,13 @@ fun SettingsScreen(
                     LiveAlertsSettingsRows(onPermissionsChanged = { onIntent(SettingsIntent.RestoreLiveAlerts) })
                 }
                 LiveAlertsSettingsFooter()
+            }
+
+            if (BackgroundRestrictions.isXiaomi()) {
+                SettingsSection("Background running") {
+                    SettingsCard { BackgroundRunRows() }
+                    BackgroundRunFooter()
+                }
             }
 
             SettingsSection("About") {

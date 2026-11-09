@@ -50,6 +50,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.redfox.alarmzy.R
+import dev.redfox.alarmzy.alarm.BackgroundRestrictions
 import dev.redfox.alarmzy.clock.LiveAlertPermissions
 import dev.redfox.alarmzy.clock.LiveAlertStatus
 import dev.redfox.obsidian.components.ObDivider
@@ -436,3 +437,52 @@ fun FullScreenAlarmWarning(modifier: Modifier = Modifier) {
 @Composable
 fun rememberFullScreenAlarmsAllowed(): Boolean =
     rememberLiveAlertsController(onPermissionsChanged = {}).status.fullScreenAllowed
+
+// ---------------------------------------------------------------------------------------------
+// Background running (Xiaomi / Redmi / POCO): Autostart + Battery saver. Shared by Settings and
+// the widget page. Only call these when [BackgroundRestrictions.isXiaomi].
+// ---------------------------------------------------------------------------------------------
+
+@Composable
+fun BackgroundRunRows() {
+    val context = LocalContext.current
+    var unrestricted by remember { mutableStateOf(BackgroundRestrictions.isUnrestricted(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) unrestricted = BackgroundRestrictions.isUnrestricted(context)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        ObListRow(
+            title = "Autostart",
+            subtitle = "Turn on so Alarmzy can restart after the system closes it",
+            icon = R.drawable.ic_alarm,
+            onClick = { BackgroundRestrictions.openAutostart(context) },
+            trailing = { StatusLabel(RowStatus.Check) } // unreadable on HyperOS
+        )
+        ObDivider()
+        ObListRow(
+            title = "Battery saver",
+            subtitle = "Set to \"No restrictions\"",
+            icon = R.drawable.ic_info,
+            onClick = { BackgroundRestrictions.openBatterySaver(context) },
+            // Unrestricted is reliable when true; HyperOS doesn't always mirror it, so never "Off".
+            trailing = { StatusLabel(if (unrestricted) RowStatus.Allowed else RowStatus.Check) }
+        )
+    }
+}
+
+@Composable
+fun BackgroundRunFooter(modifier: Modifier = Modifier) {
+    Text(
+        "HyperOS closes apps in the background, which stops the home-screen widget from updating and can " +
+            "delay alarms. Turn on Autostart, set Battery saver to \"No restrictions\", and lock Alarmzy in " +
+            "Recents (long-press its card → lock).",
+        style = ObsidianTheme.typography.label.copy(fontWeight = FontWeight.Normal),
+        color = ObsidianTheme.colors.textTertiary,
+        modifier = modifier.padding(horizontal = 4.dp)
+    )
+}

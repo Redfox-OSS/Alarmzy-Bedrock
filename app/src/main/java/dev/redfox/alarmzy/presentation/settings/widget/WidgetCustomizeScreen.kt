@@ -53,6 +53,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import dev.redfox.alarmzy.R
+import dev.redfox.alarmzy.alarm.BackgroundRestrictions
+import dev.redfox.alarmzy.presentation.livealerts.BackgroundRunFooter
+import dev.redfox.alarmzy.presentation.livealerts.BackgroundRunRows
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalUriHandler
@@ -167,6 +170,17 @@ fun WidgetCustomizeScreen(
                             }
                         } else null
                     )
+                }
+            }
+
+            // HyperOS kills the app in the background, and with it the widget's minute tick.
+            if (uiState.placedCount > 0 && BackgroundRestrictions.isXiaomi()) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SectionLabel("Keep it updating")
+                    ObCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)) {
+                        BackgroundRunRows()
+                    }
+                    BackgroundRunFooter()
                 }
             }
 
