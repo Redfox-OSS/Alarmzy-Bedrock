@@ -30,8 +30,8 @@ android {
         applicationId = "dev.redfox.alarmzy.bedrock"
         minSdk = 31
         targetSdk = 36
-        versionCode = 6
-        versionName = "2.2.1"
+        versionCode = 1
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

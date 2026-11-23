@@ -56,23 +56,23 @@ Google Clock doesn't support alarm grouping. Samsung's Clock app does, but it's 
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/alarms.png" alt="Alarms tab showing the next alarm card and enabled alarms" width="220" height="484">
+  <img src="docs/screenshots/alarms.png" alt="Alarms tab with the next alarm as an Ember aura card above the alarm list" width="220" height="489">
   &nbsp;
-  <img src="docs/screenshots/alarm-groups.png" alt="An alarm group expanded into its member alarms" width="220" height="484">
+  <img src="docs/screenshots/alarm-groups.png" alt="Alarm groups with the Work group expanded into its member alarms" width="220" height="489">
   &nbsp;
-  <img src="docs/screenshots/alarm-screen.png" alt="Alarm ringing screen with a custom background and a quote" width="220" height="484">
+  <img src="docs/screenshots/alarm-screen.png" alt="Alarm ringing screen on a drifting Ember aura with a quote on frosted glass" width="220" height="489">
 </p>
 <p align="center">
-  <img src="docs/screenshots/timer.png" alt="Timer tab with hours, minutes and seconds pickers" width="220" height="484">
+  <img src="docs/screenshots/timer.png" alt="Timer running in a clean accent ring with Cancel and Pause" width="220" height="489">
   &nbsp;
-  <img src="docs/screenshots/stopwatch.png" alt="Stopwatch tab at zero with no laps recorded" width="220" height="484">
+  <img src="docs/screenshots/stopwatch.png" alt="Stopwatch with laps, the fastest and slowest marked" width="220" height="489">
   &nbsp;
-  <img src="docs/screenshots/settings.png" alt="Settings screen with the Crimson accent and dark theme" width="220" height="484">
+  <img src="docs/screenshots/settings.png" alt="Settings with grouped rows, the Basalt theme and the Ember accent" width="220" height="489">
 </p>
 <p align="center">
-  <img src="docs/screenshots/widget-settings.png" alt="Home-screen widget settings with preview, tap actions and size" width="220" height="484">
+  <img src="docs/screenshots/widget-settings.png" alt="Home-screen widget settings with preview, tap actions and size" width="220" height="489">
   &nbsp;
-  <img src="docs/screenshots/home-screen-widget.png" alt="Home screen with the Alarmzy clock widget above the dock" width="220" height="484">
+  <img src="docs/screenshots/home-screen-widget.png" alt="Home screen with the clock widget at the top and the app in the dock" width="220" height="489">
 </p>
 
 ## Tech Stack
