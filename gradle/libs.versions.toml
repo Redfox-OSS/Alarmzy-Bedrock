@@ -18,7 +18,7 @@ appUpdate = "2.1.0"
 coil = "3.3.0"
 # 1.7.2 is the newest Haze built against Compose 1.10 / Kotlin 2.2 (2.x needs Compose 1.12 + Kotlin 2.4).
 haze = "1.7.2"
-bedrock = "0.1.0"
+bedrock = "0.1.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
