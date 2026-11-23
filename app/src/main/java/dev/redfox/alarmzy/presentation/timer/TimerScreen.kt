@@ -127,7 +127,7 @@ fun TimerScreen(
                 contentKey = { it.status == TimerStatus.IDLE },
                 transitionSpec = {
                     // The newcomer rises a short way as it fades in, a beat behind the one leaving.
-                    (fadeIn(tween(BrDurations.Enter, delayMillis = 60, easing = BrMotion.Calm)) +
+                    (fadeIn(tween(BrDurations.Enter, delayMillis = 50, easing = BrMotion.Calm)) +
                         slideInVertically(tween(BrDurations.Enter, easing = BrMotion.Calm)) { rise }) togetherWith
                         fadeOut(tween(BrDurations.Fade))
                 },

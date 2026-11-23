@@ -401,7 +401,7 @@ private fun ClockDial(
     }
 }
 
-private const val DealStaggerMillis = 22
+private const val DealStaggerMillis = 18
 private const val DealMillis = DealStaggerMillis * 11 + BrDurations.Swap
 private val DealDrift = 6.dp
 
