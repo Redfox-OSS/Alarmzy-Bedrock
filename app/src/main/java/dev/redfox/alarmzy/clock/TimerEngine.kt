@@ -28,7 +28,7 @@ import javax.inject.Singleton
 /**
  * Process-wide countdown timer — the single owner of timer state. Everything (UI, notification
  * buttons, alarm receiver, boot receiver) goes through here, and every transition drives its side
- * effects in one place ([applySideEffects]): the finish alarm, the 60s Live Update TICK, the
+ * effects in one place ([applySideEffects]): the finish alarm, the Live Update progress TICK, the
  * promoted notification, and the ring service.
  */
 @Singleton
@@ -150,7 +150,10 @@ class TimerEngine @Inject constructor(
             TimerStatus.RUNNING -> {
                 scheduleFinish(next.endAtMillis)
                 TimerNotifications.showCountdown(context, next)
-                LiveUpdates.scheduleTick(context, tickIntent())
+                // The bar only moves when the notification is re-posted: tick on its step grid.
+                val tick = TimerTicks.next(next.endAtMillis, next.durationMs, System.currentTimeMillis())
+                if (tick != null) LiveUpdates.scheduleTickAt(context, tickIntent(), tick)
+                else LiveUpdates.cancelTick(context, tickIntent())
             }
             TimerStatus.PAUSED -> {
                 cancelFinish()
@@ -172,8 +175,8 @@ class TimerEngine @Inject constructor(
     }
 
     /**
-     * setAlarmClock: exempt from Doze throttling. The minute TICKs use the exact-while-idle budget
-     * (roughly one per ~9 minutes in deep Doze), so the finish must not compete with them. The
+     * setAlarmClock: exempt from Doze throttling, so the finish is never held back with the
+     * progress TICKs (plain exact alarms, deferred while dozing; see [TimerTicks]). The
      * trade-off is that a running timer shows as the system's "next alarm", as in most clock apps.
      */
     private fun scheduleFinish(endAtMillis: Long) {

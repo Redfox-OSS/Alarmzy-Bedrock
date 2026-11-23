@@ -24,7 +24,7 @@ object LiveUpdates {
     /** Brand crimson for the progress bar; the notification itself is never colorized (blocks promotion). */
     const val ACCENT = 0xFFFF535A.toInt()
 
-    /** How often the promoted notification's static text (chip, title, progress) is refreshed. */
+    /** How often the stopwatch's promoted notification is refreshed (the timer uses [TimerTicks]). */
     const val TICK_INTERVAL_MILLIS = 60_000L
 
     private val LegacyChannels = listOf("timer_progress", "stopwatch_progress")
@@ -90,6 +90,18 @@ object LiveUpdates {
             System.currentTimeMillis() + TICK_INTERVAL_MILLIS,
             pendingIntent
         )
+    }
+
+    /**
+     * Arms the running timer's next progress tick at [atMillis] (see [TimerTicks]). Plain `setExact`,
+     * not allow-while-idle: these ticks are frequent (up to one every 5 s) and allow-while-idle is
+     * rationed to 72 an hour. While the phone dozes nobody is looking at the bar; the deferred tick
+     * is delivered as soon as the screen wakes, so the bar is current when it's next seen.
+     */
+    fun scheduleTickAt(context: Context, pendingIntent: PendingIntent, atMillis: Long) {
+        val am = context.getSystemService(AlarmManager::class.java)
+        if (!am.canScheduleExactAlarms()) return
+        am.setExact(AlarmManager.RTC_WAKEUP, atMillis, pendingIntent)
     }
 
     fun cancelTick(context: Context, pendingIntent: PendingIntent) {

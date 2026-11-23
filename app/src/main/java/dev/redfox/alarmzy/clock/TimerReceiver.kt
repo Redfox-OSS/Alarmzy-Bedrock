@@ -7,8 +7,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 /**
- * Entry point for the timer from outside the UI: the finish alarm ([ACTION_FIRE]), the 60s Live
- * Update TICK, and the notification buttons. Everything is delegated to [TimerEngine].
+ * Entry point for the timer from outside the UI: the finish alarm ([ACTION_FIRE]), the Live
+ * Update progress TICK ([TimerTicks]), and the notification buttons. Everything is delegated to [TimerEngine].
  */
 @AndroidEntryPoint
 class TimerReceiver : BroadcastReceiver() {
