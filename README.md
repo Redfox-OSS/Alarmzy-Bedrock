@@ -5,7 +5,8 @@ and features as [Alarmzy](https://github.com/Redfox-OSS/Alarmzy), with Bedrock's
 glass, mid-bright colour inside surfaces instead of glows, motion that never bounces, and an
 icon-only tab bar you can scrub). It installs as its own app, beside the original.
 
-**Building:** clone Bedrock next to this repository (`../Bedrock`); Gradle builds it from source.
+**Building:** `./gradlew assembleDebug`. Bedrock comes from its Maven repository; to work on Bedrock
+and the app together, clone it next to this repository (`../Bedrock`) and build with `-PlocalBedrock`.
 
 ---
 

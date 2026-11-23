@@ -62,7 +62,7 @@ coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref 
 # Haze (backdrop blur)
 haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
 
-# Bedrock design system (github.com/Redfox-OSS/bedrock), built from ../Bedrock (settings.gradle.kts)
+# Bedrock design system (github.com/Redfox-OSS/bedrock), from https://redfox-oss.github.io/bedrock/maven
 bedrock = { group = "dev.redfox", name = "bedrock", version.ref = "bedrock" }
 
 [plugins]
