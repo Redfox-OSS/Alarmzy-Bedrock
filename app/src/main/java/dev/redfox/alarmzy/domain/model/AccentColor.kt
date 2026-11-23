@@ -8,7 +8,7 @@ enum class AccentColor(val displayName: String, val swatch: Long) {
     EMBER("Ember", 0xFFF2884B),
     TIDE("Tide", 0xFF4FA6E6),
     MOSS("Moss", 0xFF5CC28A),
-    ROSE("Rose", 0xFFEC6F8E),
+    RED("Red", 0xFFEF3355),
     IRIS("Iris", 0xFF8E8BF0),
     SAND("Sand", 0xFFE3B04F);
 
@@ -17,6 +17,7 @@ enum class AccentColor(val displayName: String, val swatch: Long) {
 
         /** Parses a persisted name, falling back to [DEFAULT] for removed/unknown accents. */
         fun fromName(name: String?): AccentColor =
-            entries.firstOrNull { it.name == name } ?: DEFAULT
+            // ROSE was renamed RED (Bedrock 0.2.0); keep that choice.
+            if (name == "ROSE") RED else entries.firstOrNull { it.name == name } ?: DEFAULT
     }
 }

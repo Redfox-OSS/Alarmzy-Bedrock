@@ -29,7 +29,7 @@ fun AccentColor.toBedrock(): BedrockAccent = when (this) {
     AccentColor.EMBER -> BedrockAccent.Ember
     AccentColor.TIDE -> BedrockAccent.Tide
     AccentColor.MOSS -> BedrockAccent.Moss
-    AccentColor.ROSE -> BedrockAccent.Rose
+    AccentColor.RED -> BedrockAccent.Red
     AccentColor.IRIS -> BedrockAccent.Iris
     AccentColor.SAND -> BedrockAccent.Sand
 }
