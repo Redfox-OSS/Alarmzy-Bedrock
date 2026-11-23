@@ -10,23 +10,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,47 +30,53 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import dev.redfox.alarmzy.R
+import dev.redfox.alarmzy.alarm.BackgroundRestrictions
 import dev.redfox.alarmzy.domain.model.AccentColor
 import dev.redfox.alarmzy.domain.model.DarkVariant
-import dev.redfox.alarmzy.alarm.BackgroundRestrictions
 import dev.redfox.alarmzy.presentation.livealerts.BackgroundRunFooter
 import dev.redfox.alarmzy.presentation.livealerts.BackgroundRunRows
 import dev.redfox.alarmzy.presentation.livealerts.LiveAlertsSettingsFooter
 import dev.redfox.alarmzy.presentation.livealerts.LiveAlertsSettingsRows
-import dev.redfox.obsidian.navigation.floatingNavClearance
-import dev.redfox.obsidian.components.ObSwitch
-import dev.redfox.obsidian.components.ObDivider
-import dev.redfox.obsidian.components.ObListRow
-import dev.redfox.obsidian.theme.ObShapes
-import dev.redfox.obsidian.components.ChoicePill
-import dev.redfox.obsidian.components.LargeHeader
-import dev.redfox.obsidian.components.LargeHeaderHeight
-import dev.redfox.obsidian.theme.ScreenGutter
-import dev.redfox.obsidian.components.SwitchSize
-import dev.redfox.obsidian.effects.glassSource
-import dev.redfox.obsidian.effects.glow
-import dev.redfox.obsidian.effects.pressable
-import dev.redfox.obsidian.theme.ObsidianTheme
-import dev.redfox.obsidian.motion.RevealColumn
-import dev.redfox.obsidian.motion.popOnSelect
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dev.redfox.obsidian.motion.ExpandEnter
-import dev.redfox.obsidian.motion.CollapseExit
+import dev.redfox.bedrock.components.BrChip
+import dev.redfox.bedrock.components.BrDivider
+import dev.redfox.bedrock.components.BrLargeTitle
+import dev.redfox.bedrock.components.BrSwitch
+import dev.redfox.bedrock.components.BrTopBar
+import dev.redfox.bedrock.components.IconTile
+import dev.redfox.bedrock.components.ListGroup
+import dev.redfox.bedrock.components.ListRow
+import dev.redfox.bedrock.components.SectionHeader
+import dev.redfox.bedrock.components.SegmentedControl
+import dev.redfox.bedrock.components.rememberTopBarCollapse
+import dev.redfox.bedrock.components.topBarClearance
+import dev.redfox.bedrock.effects.glassSource
+import dev.redfox.bedrock.effects.pressable
+import dev.redfox.bedrock.motion.BrMotion
+import dev.redfox.bedrock.motion.BrTransitions
+import dev.redfox.bedrock.motion.RevealColumn
+import dev.redfox.bedrock.navigation.brNavClearance
+import dev.redfox.bedrock.theme.BedrockTheme
+import dev.redfox.bedrock.theme.BrSpacing
 
 private val SnoozeOptions = listOf(5, 10, 15, 20, 30)
+
+/** Where a [ListRow]'s text starts when its leading slot is a default 34dp [IconTile]. */
+private val RowTextInset: Dp = BrSpacing.L + 34.dp + BrSpacing.M
 
 @Composable
 fun SettingsScreen(
@@ -88,56 +89,48 @@ fun SettingsScreen(
     onCustomizeWidget: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val colors = ObsidianTheme.colors
-    val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + LargeHeaderHeight
+    val colors = BedrockTheme.colors
+    val scrollState = rememberScrollState()
+    val collapse = rememberTopBarCollapse(scrollState)
 
     Box(modifier.fillMaxSize().background(colors.background)) {
         RevealColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .glassSource()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = ScreenGutter)
-                .padding(top = topInset + 8.dp, bottom = floatingNavClearance() + 24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                .verticalScroll(scrollState)
+                .padding(top = topBarClearance(), bottom = brNavClearance())
         ) {
-            // Only shown while the overlay permission is missing — nothing actionable once granted.
+            BrLargeTitle(title = "Settings", collapse = collapse)
+
+            // Only shown while the overlay permission is missing: nothing actionable once granted.
             if (!overlayPermissionGranted) {
                 SettingsSection("Permissions") {
-                    SettingsCard {
-                        Row(
-                            Modifier.fillMaxWidth().pressable(pressedScale = 0.985f, onClick = onRequestOverlayPermission),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                Modifier.size(40.dp).clip(ObShapes.Tile).background(colors.warning.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Rounded.WarningAmber, contentDescription = null, tint = colors.warning, modifier = Modifier.size(20.dp))
-                            }
-                            Spacer(Modifier.width(16.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text("Display over other apps", style = ObsidianTheme.typography.labelStrong, color = colors.textPrimary)
-                                Text(
-                                    "Required for the fullscreen alarm screen. Tap to grant.",
-                                    style = ObsidianTheme.typography.body,
-                                    color = colors.textSecondary
+                    ListGroup {
+                        ListRow(
+                            title = "Display over other apps",
+                            subtitle = "Required for the full-screen alarm screen. Tap to grant.",
+                            leading = {
+                                IconTile(
+                                    rememberVectorPainter(Icons.Rounded.WarningAmber),
+                                    tint = colors.caution,
+                                    container = colors.caution.copy(alpha = 0.16f)
                                 )
-                            }
-                            Spacer(Modifier.width(12.dp))
-                            ChevronRight()
-                        }
+                            },
+                            chevron = true,
+                            onClick = onRequestOverlayPermission
+                        )
                     }
                 }
             }
 
             SettingsSection("Appearance") {
-                SettingsCard {
+                ListGroup {
                     ThemeVariantRow(
                         selected = uiState.darkVariant,
                         onSelect = { onIntent(SettingsIntent.SetDarkVariant(it)) }
                     )
-                    ObDivider()
+                    BrDivider(inset = RowTextInset)
                     AccentColorPicker(
                         selected = uiState.accentColor,
                         onSelect = { onIntent(SettingsIntent.SetAccentColor(it)) }
@@ -146,72 +139,70 @@ fun SettingsScreen(
             }
 
             SettingsSection("Alarm settings") {
-                SettingsCard {
-                    ObListRow(
+                ListGroup {
+                    ListRow(
                         title = "Customize alarm screen",
                         subtitle = "Background, buttons, clock position and size",
-                        icon = R.drawable.ic_tune,
-                        onClick = onCustomizeAlarmScreen,
-                        trailing = { ChevronRight() }
+                        leading = { IconTile(painterResource(R.drawable.ic_tune)) },
+                        chevron = true,
+                        divider = true,
+                        onClick = onCustomizeAlarmScreen
                     )
-                    ObDivider()
-                    ObListRow(
+                    ListRow(
                         title = "Ringtone",
                         subtitle = uiState.defaultRingtoneName,
-                        icon = R.drawable.ic_bell,
-                        onClick = onPickRingtone,
-                        trailing = { ChevronRight() }
+                        leading = { IconTile(painterResource(R.drawable.ic_bell)) },
+                        chevron = true,
+                        divider = true,
+                        onClick = onPickRingtone
                     )
-                    ObDivider()
                     SnoozeRow(
                         selectedMinutes = uiState.defaultSnoozeDuration,
                         onSelect = { onIntent(SettingsIntent.SetDefaultSnoozeDuration(it)) }
                     )
-                    ObDivider()
-                    ObListRow(
+                    BrDivider(inset = RowTextInset)
+                    ListRow(
                         title = "Vibration",
                         subtitle = "Vibrate when an alarm rings",
-                        icon = R.drawable.ic_vibration,
-                        onClick = { onIntent(SettingsIntent.SetDefaultVibration(!uiState.defaultVibration)) },
+                        leading = { IconTile(painterResource(R.drawable.ic_vibration)) },
                         trailing = {
-                            ObSwitch(
+                            BrSwitch(
                                 checked = uiState.defaultVibration,
-                                onCheckedChange = { onIntent(SettingsIntent.SetDefaultVibration(it)) },
-                                size = SwitchSize.Medium
+                                onCheckedChange = { onIntent(SettingsIntent.SetDefaultVibration(it)) }
                             )
-                        }
+                        },
+                        divider = true,
+                        onClick = { onIntent(SettingsIntent.SetDefaultVibration(!uiState.defaultVibration)) }
                     )
-                    ObDivider()
-                    ObListRow(
+                    ListRow(
                         title = "Gradual volume increase",
                         subtitle = "Start quiet and get louder",
-                        icon = R.drawable.ic_volume,
-                        onClick = { onIntent(SettingsIntent.SetDefaultGradualVolume(!uiState.defaultGradualVolume)) },
+                        leading = { IconTile(painterResource(R.drawable.ic_volume)) },
                         trailing = {
-                            ObSwitch(
+                            BrSwitch(
                                 checked = uiState.defaultGradualVolume,
-                                onCheckedChange = { onIntent(SettingsIntent.SetDefaultGradualVolume(it)) },
-                                size = SwitchSize.Medium
+                                onCheckedChange = { onIntent(SettingsIntent.SetDefaultGradualVolume(it)) }
                             )
-                        }
+                        },
+                        onClick = { onIntent(SettingsIntent.SetDefaultGradualVolume(!uiState.defaultGradualVolume)) }
                     )
                 }
             }
 
             SettingsSection("Widget") {
-                SettingsCard {
-                    ObListRow(
+                ListGroup {
+                    ListRow(
                         title = "Home-screen widget",
                         subtitle = "Date, time and weather: layout, size, tap actions",
-                        icon = R.drawable.ic_widgets,
-                        onClick = onCustomizeWidget,
-                        trailing = { ChevronRight() }
+                        leading = { IconTile(painterResource(R.drawable.ic_widgets)) },
+                        chevron = true,
+                        onClick = onCustomizeWidget
                     )
                 }
             }
 
-            SettingsSection("Live Alerts") {
-                SettingsCard {
+            SettingsSection("Live alerts") {
+                ListGroup {
                     LiveAlertsSettingsRows(onPermissionsChanged = { onIntent(SettingsIntent.RestoreLiveAlerts) })
                 }
                 LiveAlertsSettingsFooter()
@@ -219,19 +210,23 @@ fun SettingsScreen(
 
             if (BackgroundRestrictions.isXiaomi()) {
                 SettingsSection("Background running") {
-                    SettingsCard { BackgroundRunRows() }
+                    ListGroup { BackgroundRunRows() }
                     BackgroundRunFooter()
                 }
             }
 
             SettingsSection("About") {
-                SettingsCard {
-                    ObListRow(title = "Alarmzy", subtitle = "Version ${appVersionName()}", icon = R.drawable.ic_info)
+                ListGroup {
+                    ListRow(
+                        title = "Alarmzy",
+                        subtitle = "Version ${appVersionName()}",
+                        leading = { IconTile(painterResource(R.drawable.ic_info)) }
+                    )
                 }
             }
         }
 
-        LargeHeader(title = "Settings", modifier = Modifier.align(Alignment.TopCenter))
+        BrTopBar(title = "Settings", collapse = collapse, modifier = Modifier.align(Alignment.TopCenter))
     }
 }
 
@@ -244,52 +239,31 @@ private fun appVersionName(): String {
     }
 }
 
+/** A titled group on the page: the gutter at the edges, and the section gap below it. */
 @Composable
 private fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            title.uppercase(),
-            style = ObsidianTheme.typography.caption,
-            color = ObsidianTheme.colors.textSecondary,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = BrSpacing.Gutter)
+            .padding(bottom = BrSpacing.XXL)
+    ) {
+        SectionHeader(title)
         content()
     }
 }
 
-@Composable
-private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
-    val colors = ObsidianTheme.colors
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .glow(Color.Black.copy(alpha = 0.25f), ObShapes.CardLarge, radius = 6.dp, offsetY = 4.dp)
-            .clip(ObShapes.CardLarge)
-            .background(colors.card)
-            .border(1.dp, colors.border, ObShapes.CardLarge)
-            .padding(17.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        content = content
-    )
-}
-
-@Composable
-private fun ChevronRight() {
-    Icon(
-        painterResource(R.drawable.ic_chevron_right),
-        contentDescription = null,
-        tint = ObsidianTheme.colors.textSecondary
-    )
-}
-
+/** The chevron on a row that opens in place. It turns on the settling spring, read in draw. */
 @Composable
 private fun ExpandChevron(expanded: Boolean) {
-    val rotation by animateFloatAsState(if (expanded) 180f else 0f, label = "expandChevron")
+    val rotation = animateFloatAsState(if (expanded) 180f else 0f, BrMotion.settle(), label = "expandChevron")
     Icon(
         painterResource(R.drawable.ic_chevron_down),
         contentDescription = null,
-        tint = ObsidianTheme.colors.textSecondary,
-        modifier = Modifier.rotate(rotation)
+        tint = BedrockTheme.colors.textTertiary,
+        modifier = Modifier
+            .size(18.dp)
+            .graphicsLayer { rotationZ = rotation.value }
     )
 }
 
@@ -297,92 +271,95 @@ private fun ExpandChevron(expanded: Boolean) {
 private fun ThemeVariantRow(selected: DarkVariant, onSelect: (DarkVariant) -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Column {
-        ObListRow(
+        ListRow(
             title = "Theme",
-            subtitle = if (selected == DarkVariant.DARK) "Dark" else "Dark · ${selected.displayName}",
-            icon = R.drawable.ic_palette,
-            onClick = { expanded = !expanded },
-            trailing = { ExpandChevron(expanded) }
+            subtitle = selected.displayName,
+            leading = { IconTile(painterResource(R.drawable.ic_palette)) },
+            trailing = { ExpandChevron(expanded) },
+            modifier = Modifier.semantics { stateDescription = if (expanded) "Expanded" else "Collapsed" },
+            onClick = { expanded = !expanded }
         )
-        AnimatedVisibility(visible = expanded, enter = ExpandEnter, exit = CollapseExit) {
-            Row(
-                Modifier.fillMaxWidth().padding(top = 14.dp, start = 56.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                DarkVariant.entries.forEach { variant ->
-                    ChoicePill(text = variant.displayName, selected = variant == selected, onClick = { onSelect(variant) })
-                }
-            }
+        AnimatedVisibility(visible = expanded, enter = BrTransitions.expandIn, exit = BrTransitions.collapseOut) {
+            SegmentedControl(
+                options = DarkVariant.entries.map { it.displayName },
+                selectedIndex = DarkVariant.entries.indexOf(selected),
+                onSelect = { onSelect(DarkVariant.entries[it]) },
+                // Full card width, so "Pitch black" never has to ellipsize.
+                modifier = Modifier.padding(start = BrSpacing.L, end = BrSpacing.L, bottom = BrSpacing.L)
+            )
         }
     }
 }
 
 @Composable
 private fun AccentColorPicker(selected: AccentColor, onSelect: (AccentColor) -> Unit) {
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        ObListRow(
+    Column {
+        ListRow(
             title = "Accent color",
             subtitle = selected.displayName,
-            icon = R.drawable.ic_format_paint,
-            trailing = {
-                Row(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(colors.accentLight.copy(alpha = 0.2f))
-                        .border(1.dp, colors.accentLight.copy(alpha = 0.2f), CircleShape)
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(Modifier.size(8.dp).clip(CircleShape).background(colors.accent))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Active", style = type.labelStrong, color = colors.accentLight)
-                }
-            }
+            leading = { IconTile(painterResource(R.drawable.ic_format_paint)) }
         )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = BrSpacing.S, end = BrSpacing.S, bottom = BrSpacing.M)
+                .selectableGroup(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             AccentColor.entries.forEach { accent ->
-                val isSel = accent == selected
-                val swatch = Color(accent.swatch)
-                Column(
-                    modifier = Modifier
-                        .semantics { contentDescription = "${accent.displayName} accent" }
-                        .popOnSelect(isSel, amount = 0.1f)
-                        .pressable(pressedScale = 0.9f, role = Role.RadioButton, haptic = HapticFeedbackType.SegmentTick) { onSelect(accent) },
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .then(if (isSel) Modifier.glow(swatch.copy(alpha = 0.35f), ObShapes.Tile, radius = 12.dp, offsetY = 6.dp) else Modifier)
-                            .size(48.dp)
-                            .alpha(if (isSel) 1f else 0.8f)
-                            .clip(ObShapes.Tile)
-                            .background(swatch)
-                            .then(if (isSel) Modifier.border(2.dp, colors.accentLight.copy(alpha = 0.4f), ObShapes.Tile) else Modifier),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isSel) {
-                            Icon(
-                                painterResource(R.drawable.ic_check_bold),
-                                contentDescription = null,
-                                // Keep the check legible on the white Luminous swatch.
-                                tint = if (accent == AccentColor.LUMINOUS) Color(0xFF1A1A1D) else Color.White
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        accent.displayName,
-                        style = type.caption.copy(
-                            fontWeight = if (isSel) FontWeight.Medium else FontWeight.SemiBold,
-                            letterSpacing = 0.6.sp
-                        ),
-                        color = if (isSel) colors.textPrimary else colors.textSecondary
-                    )
-                }
+                AccentSwatch(
+                    color = Color(accent.swatch),
+                    name = accent.displayName,
+                    selected = accent == selected,
+                    onClick = { onSelect(accent) },
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
+    }
+}
+
+/**
+ * One accent choice: a round swatch. When chosen, a calm 2dp ring eases in around it while the
+ * swatch settles a little smaller inside the ring (the catalog's Swatch). No pop, no glow.
+ */
+@Composable
+private fun AccentSwatch(
+    color: Color,
+    name: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val ringColor = BedrockTheme.colors.textPrimary
+    val ring = animateFloatAsState(if (selected) 1f else 0f, BrMotion.settle(), label = "swatchRing")
+    Box(
+        modifier
+            .height(52.dp)
+            .pressable(role = Role.RadioButton, pressedScale = 0.94f, haptic = HapticFeedbackType.SegmentTick, onClick = onClick)
+            .semantics {
+                contentDescription = "$name accent"
+                this.selected = selected
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            Modifier
+                .size(44.dp)
+                .graphicsLayer { alpha = ring.value }
+                .border(2.dp, ringColor.copy(alpha = 0.85f), CircleShape)
+        )
+        Box(
+            Modifier
+                .size(40.dp)
+                .graphicsLayer {
+                    val s = 1f - 0.16f * ring.value
+                    scaleX = s
+                    scaleY = s
+                }
+                .clip(CircleShape)
+                .background(color)
+        )
     }
 }
 
@@ -390,25 +367,25 @@ private fun AccentColorPicker(selected: AccentColor, onSelect: (AccentColor) -> 
 private fun SnoozeRow(selectedMinutes: Int, onSelect: (Int) -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Column {
-        ObListRow(
+        ListRow(
             title = "Snooze duration",
-            subtitle = "$selectedMinutes minutes",
-            icon = R.drawable.ic_snooze,
-            onClick = { expanded = !expanded },
-            trailing = { ExpandChevron(expanded) }
+            value = "$selectedMinutes min",
+            leading = { IconTile(painterResource(R.drawable.ic_snooze)) },
+            trailing = { ExpandChevron(expanded) },
+            modifier = Modifier.semantics { stateDescription = if (expanded) "Expanded" else "Collapsed" },
+            onClick = { expanded = !expanded }
         )
-        AnimatedVisibility(visible = expanded, enter = ExpandEnter, exit = CollapseExit) {
+        AnimatedVisibility(visible = expanded, enter = BrTransitions.expandIn, exit = BrTransitions.collapseOut) {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(top = 14.dp)
                     .horizontalScroll(rememberScrollState())
-                    .padding(start = 56.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(start = RowTextInset, end = BrSpacing.L, bottom = BrSpacing.L),
+                horizontalArrangement = Arrangement.spacedBy(BrSpacing.S)
             ) {
                 SnoozeOptions.forEach { minutes ->
-                    ChoicePill(
-                        text = "$minutes min",
+                    BrChip(
+                        label = "$minutes min",
                         selected = minutes == selectedMinutes,
                         onClick = { onSelect(minutes) }
                     )

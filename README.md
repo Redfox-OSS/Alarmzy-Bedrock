@@ -1,4 +1,13 @@
-# Alarmzy
+# Alarmzy Bedrock
+
+Alarmzy rebuilt on the [Bedrock](https://github.com/Redfox-OSS/bedrock) design system: the same app
+and features as [Alarmzy](https://github.com/Redfox-OSS/Alarmzy), with Bedrock's calmer look (frosted
+glass, mid-bright colour inside surfaces instead of glows, motion that never bounces, and an
+icon-only tab bar you can scrub). It installs as its own app, beside the original.
+
+**Building:** clone Bedrock next to this repository (`../Bedrock`); Gradle builds it from source.
+
+---
 
 A standalone Android alarm app with **alarm grouping** as its killer feature. Create named groups of alarms and toggle them all on or off with a single switch.
 
@@ -70,7 +79,7 @@ Google Clock doesn't support alarm grouping. Samsung's Clock app does, but it's 
 
 | Layer | Technology |
 |-------|-----------|
-| UI | Jetpack Compose, Obsidian design system |
+| UI | Jetpack Compose, [Bedrock](https://github.com/Redfox-OSS/bedrock) design system |
 | Architecture | Hybrid MVVM + MVI |
 | Database | Room |
 | DI | Hilt |

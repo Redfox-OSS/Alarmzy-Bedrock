@@ -26,7 +26,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "dev.redfox.alarmzy"
+        // Its own id, so it installs beside the Obsidian Alarmzy (dev.redfox.alarmzy).
+        applicationId = "dev.redfox.alarmzy.bedrock"
         minSdk = 31
         targetSdk = 36
         versionCode = 6
@@ -110,7 +111,7 @@ dependencies {
     implementation(libs.coil.compose)
 
     // Obsidian design system (theme, components, motion, glows)
-    implementation(libs.obsidian)
+    implementation(libs.bedrock)
 
     // Haze (glass blur behind the header + floating nav bar)
     implementation(libs.haze)

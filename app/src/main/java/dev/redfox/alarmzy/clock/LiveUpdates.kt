@@ -21,8 +21,8 @@ object LiveUpdates {
     /** High importance (tested config for promotion) but silent: only [ensureChannel]'s first post peeks. */
     const val CHANNEL_LIVE = "clock_live"
 
-    /** Brand crimson for the progress bar; the notification itself is never colorized (blocks promotion). */
-    const val ACCENT = 0xFFFF535A.toInt()
+    /** Bedrock Ember for the progress bar; the notification itself is never colorized (blocks promotion). */
+    const val ACCENT = 0xFFF2884B.toInt()
 
     /** How often the stopwatch's promoted notification is refreshed (the timer uses [TimerTicks]). */
     const val TICK_INTERVAL_MILLIS = 60_000L

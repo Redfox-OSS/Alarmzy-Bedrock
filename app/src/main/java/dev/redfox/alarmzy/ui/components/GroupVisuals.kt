@@ -29,18 +29,22 @@ val GroupIcon?.drawableRes: Int
         GroupIcon.MUSIC -> R.drawable.ic_group_music
     }
 
-/** Group color swatches from DESIGN.md (persisted as hex strings). */
+/**
+ * Group color swatches (persisted as hex strings): ten mid-bright hues in Bedrock's range, so a
+ * group's colour sits beside the accent instead of shouting over it. Where a hue matches a Bedrock
+ * accent family, it's that family's main tone.
+ */
 val GroupColorSwatches: List<String> = listOf(
-    "#5C6BC0", // Indigo Blue
-    "#26A69A", // Teal Mint
-    "#FF3B4E", // Crimson
-    "#FB8C00", // Vibrant Orange
-    "#4CAF50", // Emerald Green
-    "#AB47BC", // Amethyst Purple
-    "#FBC02D", // Solar Amber
-    "#29B6F6", // Electric Sky
-    "#EC407A", // Coral Pink
-    "#8D6E63", // Warm Sand
+    "#7F86E0", // Indigo
+    "#4DB6A6", // Teal
+    "#E8676A", // Coral red
+    "#F2884B", // Ember
+    "#5CC28A", // Moss
+    "#B07FD9", // Violet
+    "#E3B04F", // Sand
+    "#4FA6E6", // Tide
+    "#EC6F8E", // Rose
+    "#A88E7A", // Stone
 )
 
 /** Parses a "#RRGGBB" group color; null for missing/invalid values. */

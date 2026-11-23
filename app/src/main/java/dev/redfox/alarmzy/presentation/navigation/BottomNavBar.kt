@@ -1,34 +1,30 @@
 package dev.redfox.alarmzy.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
-import dev.redfox.obsidian.navigation.FloatingNavBar
-import dev.redfox.obsidian.navigation.FloatingNavItem
-import dev.redfox.obsidian.navigation.NavIconMotion
+import dev.redfox.bedrock.navigation.BrNavBar
+import dev.redfox.bedrock.navigation.BrNavItem
 
-/** Each tab's icon animation: the alarm rings, the hourglass flips, the stopwatch clicks, the stack wobbles, the gear turns. */
-private val BottomNavScreen.motion: NavIconMotion
-    get() = when (this) {
-        BottomNavScreen.Alarms -> NavIconMotion.Shake
-        BottomNavScreen.Timer -> NavIconMotion.Flip
-        BottomNavScreen.Stopwatch -> NavIconMotion.Press
-        BottomNavScreen.Groups -> NavIconMotion.Jelly
-        BottomNavScreen.Settings -> NavIconMotion.Turn
-    }
+private val NavItems = BottomNavScreen.entries.map { BrNavItem(it.icon, it.label) }
 
-private val NavItems = BottomNavScreen.entries.map { FloatingNavItem(it.icon, it.label, it.motion) }
-
-/** The app's tab bar: Obsidian's [FloatingNavBar] over the [BottomNavScreen] tabs. */
+/**
+ * The app's tab bar: Bedrock's [BrNavBar] over the [BottomNavScreen] tabs. Icons only (the labels
+ * are for screen readers); hold and slide across it to scrub between tabs. While [compact] is
+ * true it eases into its slimmer form.
+ */
 @Composable
 fun BottomNavBar(
     currentRoute: String?,
     onNavigate: (BottomNavScreen) -> Unit,
+    compact: State<Boolean>,
     modifier: Modifier = Modifier
 ) {
-    FloatingNavBar(
+    BrNavBar(
         items = NavItems,
         selectedIndex = BottomNavScreen.entries.indexOfFirst { it.route == currentRoute },
         onSelect = { onNavigate(BottomNavScreen.entries[it]) },
-        modifier = modifier
+        modifier = modifier,
+        compact = compact,
     )
 }

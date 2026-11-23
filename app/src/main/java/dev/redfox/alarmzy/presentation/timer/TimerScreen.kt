@@ -1,15 +1,13 @@
 package dev.redfox.alarmzy.presentation.timer
 
-import android.graphics.BlurMaskFilter
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -23,77 +21,76 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Icon
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import dev.redfox.alarmzy.R
 import dev.redfox.alarmzy.domain.model.TimerState
 import dev.redfox.alarmzy.domain.model.TimerStatus
 import dev.redfox.alarmzy.presentation.common.countdownReadout
-import dev.redfox.alarmzy.presentation.common.durationPill
 import dev.redfox.alarmzy.presentation.common.hmsToMillis
 import dev.redfox.alarmzy.presentation.common.millisToHms
-import dev.redfox.alarmzy.presentation.common.rememberTicker
-import dev.redfox.obsidian.navigation.floatingNavClearance
-import dev.redfox.obsidian.theme.ObShapes
-import dev.redfox.obsidian.components.ActionPillButton
-import dev.redfox.obsidian.components.LargeHeader
-import dev.redfox.obsidian.components.LargeHeaderHeight
-import dev.redfox.obsidian.theme.ScreenGutter
-import dev.redfox.obsidian.effects.glassSource
-import dev.redfox.obsidian.effects.glow
-import dev.redfox.obsidian.effects.pressable
-import dev.redfox.obsidian.theme.ObsidianTheme
-import dev.redfox.obsidian.theme.InterFontFamily
+import dev.redfox.bedrock.components.BrButton
+import dev.redfox.bedrock.components.BrChip
+import dev.redfox.bedrock.components.BrLargeTitle
+import dev.redfox.bedrock.components.BrTag
+import dev.redfox.bedrock.components.ButtonSize
+import dev.redfox.bedrock.components.ButtonVariant
+import dev.redfox.bedrock.components.topBarClearance
+import dev.redfox.bedrock.effects.glassSource
+import dev.redfox.bedrock.motion.BrDurations
+import dev.redfox.bedrock.motion.BrMotion
+import dev.redfox.bedrock.motion.BrTransitions
+import dev.redfox.bedrock.motion.RollingNumber
+import dev.redfox.bedrock.motion.revealOnEnter
+import dev.redfox.bedrock.navigation.brNavClearance
+import dev.redfox.bedrock.theme.BedrockTheme
+import dev.redfox.bedrock.theme.BrShapes
+import dev.redfox.bedrock.theme.BrSpacing
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -102,18 +99,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.keyframes
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.animateContentSize
-import androidx.compose.ui.graphics.graphicsLayer
-import dev.redfox.obsidian.motion.ObMotion
-import dev.redfox.obsidian.motion.RollingText
-import dev.redfox.obsidian.motion.revealOnEnter
-import dev.redfox.obsidian.motion.popOnSelect
-
-private const val Tnum = "tnum"
+import kotlin.math.roundToInt
 
 @Composable
 fun TimerScreen(
@@ -122,34 +108,57 @@ fun TimerScreen(
     modifier: Modifier = Modifier
 ) {
     val timer = uiState.timer
-    val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + LargeHeaderHeight
+    // The timer never scrolls, so its large title always rests fully shown.
+    val collapse = remember { mutableFloatStateOf(0f) }
+    val rise = with(LocalDensity.current) { 14.dp.roundToPx() }
 
-    Box(modifier.fillMaxSize().background(ObsidianTheme.colors.background)) {
-        AnimatedContent(
-            targetState = timer.status == TimerStatus.IDLE,
-            transitionSpec = {
-                if (targetState) {
-                    // Back to the picker: it settles in as the ring shrinks away.
-                    (fadeIn(tween(260, delayMillis = 60)) + scaleIn(ObMotion.gentle(), initialScale = 1.06f)) togetherWith
-                        (fadeOut(tween(160)) + scaleOut(tween(220), targetScale = 0.86f))
-                } else {
-                    // Start: the picker lifts away and the ring blooms in with a bounce.
-                    (fadeIn(tween(240, delayMillis = 80)) + scaleIn(spring(dampingRatio = 0.62f, stiffness = 260f), initialScale = 0.8f)) togetherWith
-                        (fadeOut(tween(160)) + scaleOut(tween(220), targetScale = 1.08f))
-                }
-            },
-            label = "timerMode",
-            modifier = Modifier
+    Box(modifier.fillMaxSize().background(BedrockTheme.colors.background)) {
+        Column(
+            Modifier
                 .fillMaxSize()
                 .glassSource()
-                .padding(top = topInset, bottom = floatingNavClearance())
-                .padding(horizontal = ScreenGutter)
-        ) { idle ->
-            if (idle) TimerSetup(timer, onIntent) else TimerRunning(timer, onIntent)
+                .padding(top = topBarClearance(), bottom = brNavClearance())
+        ) {
+            BrLargeTitle(title = "Timer", collapse = collapse)
+            // Each mode keeps its own last timer state, so the leaving one doesn't flash the
+            // other's numbers while it fades.
+            AnimatedContent(
+                targetState = timer,
+                contentKey = { it.status == TimerStatus.IDLE },
+                transitionSpec = {
+                    // The newcomer rises a short way as it fades in, a beat behind the one leaving.
+                    (fadeIn(tween(BrDurations.Enter, delayMillis = 60, easing = BrMotion.Calm)) +
+                        slideInVertically(tween(BrDurations.Enter, easing = BrMotion.Calm)) { rise }) togetherWith
+                        fadeOut(tween(BrDurations.Fade))
+                },
+                label = "timerMode",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = BrSpacing.Gutter)
+            ) { state ->
+                if (state.status == TimerStatus.IDLE) TimerSetup(state, onIntent) else TimerRunning(state, onIntent)
+            }
         }
-
-        LargeHeader(title = "Timer", modifier = Modifier.align(Alignment.TopCenter))
     }
+}
+
+/**
+ * The wall clock, refreshed every frame while [active]. The same per-frame tick as
+ * `rememberTicker`, handed out as a [State] so the ring reads it in draw and the readings through
+ * derived state: the screen itself never recomposes per frame.
+ */
+@Composable
+private fun rememberFrameClock(active: Boolean): State<Long> {
+    val now = remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(active) {
+        now.longValue = System.currentTimeMillis()
+        while (active) {
+            withFrameMillis { }
+            now.longValue = System.currentTimeMillis()
+        }
+    }
+    return now
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -160,7 +169,8 @@ private val ColonWidth = 20.dp
 
 @Composable
 private fun TimerSetup(timer: TimerState, onIntent: (TimerIntent) -> Unit) {
-    val colors = ObsidianTheme.colors
+    val colors = BedrockTheme.colors
+    val type = BedrockTheme.typography
     val (h, m, s) = millisToHms(timer.pickerMs)
     val set = { hh: Int, mm: Int, ss: Int -> onIntent(TimerIntent.SetDuration(hmsToMillis(hh, mm, ss))) }
 
@@ -168,21 +178,28 @@ private fun TimerSetup(timer: TimerState, onIntent: (TimerIntent) -> Unit) {
         Spacer(Modifier.weight(1f))
 
         // Column headers aligned with the wheels below.
-        Row(Modifier.fillMaxWidth().padding(bottom = 12.dp).revealOnEnter(0)) {
-            val label = ObsidianTheme.typography.label.copy(letterSpacing = 0.025.em)
-            listOf("HOURS", "MINUTES", "SECONDS").forEachIndexed { i, text ->
+        Row(Modifier.fillMaxWidth().padding(bottom = BrSpacing.M).revealOnEnter(0)) {
+            listOf("Hours", "Minutes", "Seconds").forEachIndexed { i, text ->
                 if (i > 0) Spacer(Modifier.width(ColonWidth))
-                Text(text, style = label, color = colors.textTertiary, textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+                Text(
+                    text,
+                    style = type.caption,
+                    color = colors.textSecondary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
 
         Box(Modifier.revealOnEnter(1), contentAlignment = Alignment.Center) {
-            // Ambient accent glow behind the selected row.
+            // The selected row rests on a quiet raised band: colour inside a surface, no glow.
             Box(
                 Modifier
-                    .width(256.dp)
-                    .height(72.dp)
-                    .glow(colors.accent.copy(alpha = 0.14f), CircleShape, radius = 36.dp)
+                    .fillMaxWidth()
+                    .height(SelectionBandHeight)
+                    .clip(BrShapes.Large)
+                    .background(colors.surfaceRaised)
+                    .border(1.dp, colors.line, BrShapes.Large)
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 NumberWheel(range = 100, value = h, onValueChange = { set(it, m, s) }, description = "Hours", modifier = Modifier.weight(1f))
@@ -197,26 +214,28 @@ private fun TimerSetup(timer: TimerState, onIntent: (TimerIntent) -> Unit) {
 
         Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)
+            horizontalArrangement = Arrangement.spacedBy(BrSpacing.S, Alignment.CenterHorizontally)
         ) {
             TimerUiState.Presets.forEachIndexed { i, preset ->
-                PresetPill(
-                    durationMs = preset,
+                BrChip(
+                    label = spokenDuration(preset),
                     selected = preset == timer.pickerMs,
                     onClick = { onIntent(TimerIntent.SetDuration(preset)) },
-                    modifier = Modifier.weight(1f).widthIn(max = 105.dp).revealOnEnter(2 + i)
+                    modifier = Modifier.revealOnEnter(2 + i)
                 )
             }
         }
-        Spacer(Modifier.height(28.dp))
-        ActionPillButton(
+        Spacer(Modifier.height(BrSpacing.XL))
+        BrButton(
             text = "Start",
-            primary = true,
-            enabled = timer.pickerMs > 0,
             onClick = { onIntent(TimerIntent.Start) },
-            modifier = Modifier.width(192.dp).revealOnEnter(2 + TimerUiState.Presets.size)
+            modifier = Modifier.fillMaxWidth().revealOnEnter(2 + TimerUiState.Presets.size),
+            variant = ButtonVariant.Primary,
+            size = ButtonSize.Large,
+            icon = rememberVectorPainter(Icons.Rounded.PlayArrow),
+            enabled = timer.pickerMs > 0
         )
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(BrSpacing.L))
     }
 }
 
@@ -225,15 +244,16 @@ private fun WheelColon() {
     Box(Modifier.width(ColonWidth), contentAlignment = Alignment.Center) {
         Text(
             ":",
-            style = TextStyle(fontFamily = InterFontFamily, fontWeight = FontWeight.Bold, fontSize = 36.sp),
-            color = ObsidianTheme.colors.accent,
-            modifier = Modifier.padding(bottom = 6.dp)
+            style = BedrockTheme.typography.numeral.copy(fontSize = 40.sp, lineHeight = 44.sp),
+            color = BedrockTheme.colors.textTertiary,
+            modifier = Modifier.padding(bottom = 4.dp)
         )
     }
 }
 
 private val WheelItemHeight = 80.dp
 private val WheelHeight = 240.dp
+private val SelectionBandHeight = 68.dp
 private const val WheelLoops = 1000
 
 /**
@@ -249,7 +269,8 @@ private fun NumberWheel(
     description: String,
     modifier: Modifier = Modifier,
 ) {
-    val colors = ObsidianTheme.colors
+    val colors = BedrockTheme.colors
+    val digits = BedrockTheme.typography.numeral.copy(fontSize = 52.sp, lineHeight = 56.sp)
     val haptics = LocalHapticFeedback.current
     val count = range * WheelLoops
     val middle = remember(range) { (count / 2) - (count / 2) % range }
@@ -320,83 +341,53 @@ private fun NumberWheel(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    "%02d".format(index % range),
-                    style = TextStyle(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 54.sp,
-                        letterSpacing = (-1.35).sp,
-                        fontFeatureSettings = Tnum,
-                    ),
-                    color = Color.White
-                )
+                Text("%02d".format(index % range), style = digits, color = colors.textPrimary)
             }
         }
     }
 }
 
-@Composable
-private fun PresetPill(durationMs: Long, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val colors = ObsidianTheme.colors
-    val (h, m, s) = millisToHms(durationMs)
-    Box(
-        modifier = modifier
-            .popOnSelect(selected)
-            .then(if (selected) Modifier.glow(colors.accent.copy(alpha = 0.2f), CircleShape, radius = 6.dp) else Modifier)
-            .pressable(pressedScale = 0.92f, haptic = HapticFeedbackType.SegmentTick, onClick = onClick)
-            .clip(CircleShape)
-            .background(colors.cardInner)
-            .border(1.dp, if (selected) colors.accent.copy(alpha = 0.3f) else colors.border, CircleShape)
-            .padding(vertical = 11.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            "%02d:%02d:%02d".format(h, m, s),
-            style = ObsidianTheme.typography.body.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium, fontFeatureSettings = Tnum, letterSpacing = (-0.3).sp),
-            color = if (selected) Color.White else Color.White.copy(alpha = 0.8f)
-        )
+/** "10 min", "1 h 30 min", "45 s": a duration the way a person would say it. */
+private fun spokenDuration(ms: Long): String {
+    val (h, m, s) = millisToHms(ms)
+    val parts = buildList {
+        if (h > 0) add("$h h")
+        if (m > 0) add("$m min")
+        if (s > 0) add("$s s")
     }
+    return if (parts.isEmpty()) "0 s" else parts.joinToString(" ")
 }
 
 // ---------------------------------------------------------------------------------------------
 // Running / paused / finished: progress ring + controls
 // ---------------------------------------------------------------------------------------------
 
+private val RingStroke = 6.dp
+
 @Composable
 private fun TimerRunning(timer: TimerState, onIntent: (TimerIntent) -> Unit) {
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
+    val colors = BedrockTheme.colors
+    val type = BedrockTheme.typography
     val running = timer.status == TimerStatus.RUNNING
     val finished = timer.status == TimerStatus.FINISHED
-    val now = rememberTicker(active = running) { System.currentTimeMillis() }
-    val remaining = timer.remainingAt(now)
-    val fraction = if (timer.durationMs > 0) (remaining.toFloat() / timer.durationMs).coerceIn(0f, 1f) else 0f
+    val paused = timer.status == TimerStatus.PAUSED
+    val now = rememberFrameClock(active = running)
 
-    // Paused and finished readouts pulse gently.
-    val ambient = rememberInfiniteTransition(label = "timerPulse")
-    val pulse by ambient.animateFloat(
-        initialValue = 1f,
-        targetValue = 0.45f,
-        animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
-        label = "pulse"
+    // Paused: the reading and the arc dim and hold still. Finished: the ring fills and its
+    // inside takes on the accent. Both are slow fades, read in draw.
+    val dim = animateFloatAsState(
+        targetValue = if (paused) 1f else 0f,
+        animationSpec = tween(BrDurations.Linger, easing = BrMotion.Calm),
+        label = "pausedDim"
     )
-    // "Time's up": the whole ring throbs like a heartbeat.
-    val beat by ambient.animateFloat(
-        initialValue = 1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(keyframes {
-            durationMillis = 1100
-            1.045f at 120
-            1f at 300
-            1.03f at 420
-            1f at 640
-        }),
-        label = "beat"
+    val done = animateFloatAsState(
+        targetValue = if (finished) 1f else 0f,
+        animationSpec = tween(BrDurations.Linger, easing = BrMotion.Calm),
+        label = "finishedFill"
     )
-    // The ring draws itself in when the countdown screen appears.
+    // The ring draws itself in when the countdown appears.
     val intro = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { intro.animateTo(1f, tween(1100, easing = ObMotion.EaseOutEmphasized)) }
+    LaunchedEffect(Unit) { intro.animateTo(1f, tween(BrDurations.Linger, easing = BrMotion.Calm)) }
 
     Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.weight(1f))
@@ -404,146 +395,178 @@ private fun TimerRunning(timer: TimerState, onIntent: (TimerIntent) -> Unit) {
             modifier = Modifier
                 .widthIn(max = 288.dp)
                 .fillMaxWidth()
-                .aspectRatio(1f)
-                .graphicsLayer {
-                    val s = if (finished) beat else 1f
-                    scaleX = s
-                    scaleY = s
-                },
+                .aspectRatio(1f),
             contentAlignment = Alignment.Center
         ) {
             val ringSize: Dp = maxWidth
-            Canvas(Modifier.fillMaxSize()) {
-                drawTimerRing(
-                    fraction = (if (finished) 1f else fraction) * intro.value,
-                    dim = !running && !finished,
-                    track = colors.cardInner.copy(alpha = 0.8f),
-                    accent = colors.accent,
-                )
-            }
+            TimerRing(
+                timer = timer,
+                now = now,
+                intro = intro.asState(),
+                dim = dim,
+                done = done,
+                modifier = Modifier.fillMaxSize()
+            )
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                RollingText(
-                    countdownReadout(remaining),
-                    rollUp = false,
-                    style = TextStyle(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = (ringSize.value * if (remaining >= 3_600_000L) 0.15f else 0.1875f).sp,
-                        letterSpacing = (-1.35).sp,
-                        fontFeatureSettings = Tnum,
-                    ),
-                    color = if (finished) colors.accent else Color.White,
-                    modifier = Modifier.alpha(if (running) 1f else pulse)
-                )
-                Spacer(Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.animateContentSize(ObMotion.snappy())) {
-                    when {
-                        running -> {
-                            Icon(painterResource(R.drawable.ic_bell_ring), contentDescription = null, tint = colors.accent)
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                "Ends at ${endsAt(timer.endAtMillis)}",
-                                style = type.body.copy(fontSize = 13.sp, letterSpacing = 0.025.em),
-                                color = colors.textTertiary
-                            )
+                CountdownReading(timer = timer, now = now, ringSize = ringSize, finished = finished, dim = dim)
+                Spacer(Modifier.height(BrSpacing.M))
+                AnimatedContent(
+                    targetState = timer.status,
+                    transitionSpec = { BrTransitions.swap },
+                    label = "timerStatus"
+                ) { status ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        when (status) {
+                            TimerStatus.FINISHED -> Text("Time's up", style = type.label, color = colors.accentSoft)
+                            TimerStatus.RUNNING -> {
+                                Icon(
+                                    painterResource(R.drawable.ic_bell_ring),
+                                    contentDescription = null,
+                                    tint = colors.accentSoft,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    "Ends at ${endsAt(timer.endAtMillis)}",
+                                    style = type.caption.copy(fontFeatureSettings = type.figure.fontFeatureSettings),
+                                    color = colors.textSecondary
+                                )
+                            }
+                            else -> Text("Paused", style = type.caption, color = colors.textSecondary)
                         }
-                        finished -> Text("Time's up", style = type.body.copy(fontWeight = FontWeight.SemiBold), color = colors.accentLight)
-                        else -> Text("Paused", style = type.body.copy(fontSize = 13.sp, letterSpacing = 0.025.em), color = colors.textTertiary)
                     }
                 }
-                Spacer(Modifier.height(8.dp))
-                Box(
-                    Modifier
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.05f))
-                        .border(1.dp, Color.White.copy(alpha = 0.05f), CircleShape)
-                        .padding(horizontal = 11.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        durationPill(timer.durationMs),
-                        style = type.caption.copy(fontSize = 11.sp, fontWeight = FontWeight.Normal, letterSpacing = 0.05.em),
-                        color = Color.White.copy(alpha = 0.5f)
-                    )
-                }
+                Spacer(Modifier.height(BrSpacing.S))
+                BrTag(text = spokenDuration(timer.durationMs))
             }
         }
         Spacer(Modifier.weight(1f))
 
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
-        ) {
-            if (finished) {
-                ActionPillButton(
-                    text = "+1 min",
-                    onClick = { onIntent(TimerIntent.AddMinute) },
-                    modifier = Modifier.weight(1f)
-                )
-                ActionPillButton(
-                    text = "Stop",
-                    primary = true,
-                    onClick = { onIntent(TimerIntent.Cancel) },
-                    modifier = Modifier.weight(1f)
-                )
-            } else {
-                ActionPillButton(
-                    text = "Cancel",
-                    icon = painterResource(R.drawable.ic_cancel),
-                    onClick = { onIntent(TimerIntent.Cancel) },
-                    modifier = Modifier.weight(1f)
-                )
-                ActionPillButton(
-                    text = if (running) "Pause" else "Resume",
-                    icon = if (running) painterResource(R.drawable.ic_pause)
-                    else rememberVectorPainter(Icons.Rounded.PlayArrow),
-                    primary = true,
-                    onClick = { onIntent(if (running) TimerIntent.Pause else TimerIntent.Resume) },
-                    modifier = Modifier.weight(1f)
-                )
+        AnimatedContent(
+            targetState = finished,
+            transitionSpec = { BrTransitions.swap },
+            label = "timerControls",
+            modifier = Modifier.fillMaxWidth().padding(bottom = BrSpacing.L)
+        ) { isFinished ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(BrSpacing.M)
+            ) {
+                if (isFinished) {
+                    BrButton(
+                        text = "+1 min",
+                        onClick = { onIntent(TimerIntent.AddMinute) },
+                        modifier = Modifier.weight(1f),
+                        variant = ButtonVariant.Tonal,
+                        size = ButtonSize.Large
+                    )
+                    BrButton(
+                        text = "Stop",
+                        onClick = { onIntent(TimerIntent.Cancel) },
+                        modifier = Modifier.weight(1f),
+                        variant = ButtonVariant.Primary,
+                        size = ButtonSize.Large
+                    )
+                } else {
+                    BrButton(
+                        text = "Cancel",
+                        onClick = { onIntent(TimerIntent.Cancel) },
+                        modifier = Modifier.weight(1f),
+                        variant = ButtonVariant.Tonal,
+                        size = ButtonSize.Large,
+                        icon = painterResource(R.drawable.ic_cancel)
+                    )
+                    BrButton(
+                        text = if (running) "Pause" else "Resume",
+                        onClick = { onIntent(if (running) TimerIntent.Pause else TimerIntent.Resume) },
+                        modifier = Modifier.weight(1f),
+                        variant = ButtonVariant.Primary,
+                        size = ButtonSize.Large,
+                        icon = if (running) painterResource(R.drawable.ic_pause)
+                        else rememberVectorPainter(Icons.Rounded.PlayArrow)
+                    )
+                }
             }
         }
     }
+}
+
+/** Share of the duration still to run, 1 at the start and 0 when time is up. */
+private fun TimerState.fractionAt(now: Long): Float =
+    if (durationMs > 0) (remainingAt(now).toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+
+/**
+ * The progress ring: an accent arc on a surfaceHigh track with round ends, draining
+ * counter-clockwise from 12 o'clock. The time is read in draw, so it never recomposes per frame;
+ * only the accessibility progress (in whole percent) goes through composition.
+ */
+@Composable
+private fun TimerRing(
+    timer: TimerState,
+    now: State<Long>,
+    intro: State<Float>,
+    dim: State<Float>,
+    done: State<Float>,
+    modifier: Modifier = Modifier,
+) {
+    val colors = BedrockTheme.colors
+    val percent by remember(timer) { derivedStateOf { (timer.fractionAt(now.value) * 100).roundToInt() } }
+    val progress = percent / 100f
+    Canvas(modifier.semantics { progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f) }) {
+        val stroke = RingStroke.toPx()
+        val r = (size.minDimension - stroke) / 2f
+        val filled = done.value
+        // Time's up: the accent settles inside the ring rather than glowing around it.
+        if (filled > 0f) drawCircle(colors.accentContainer, radius = r - stroke / 2f, center = center, alpha = filled)
+        drawCircle(colors.surfaceHigh, radius = r, center = center, style = Stroke(width = stroke))
+        val f = timer.fractionAt(now.value)
+        val sweep = 360f * (f + (1f - f) * filled) * intro.value
+        if (sweep <= 0f) return@Canvas
+        drawArc(
+            color = colors.accentMain.copy(alpha = 1f - 0.55f * dim.value),
+            startAngle = -90f,
+            sweepAngle = sweep,
+            useCenter = false,
+            topLeft = Offset(center.x - r, center.y - r),
+            size = Size(r * 2f, r * 2f),
+            style = Stroke(width = stroke, cap = StrokeCap.Round)
+        )
+    }
+}
+
+/**
+ * The big countdown: Light, tabular numerals sized to the ring, digits rolling down as they
+ * change. It recomposes once a second (when the text changes), not every frame.
+ */
+@Composable
+private fun CountdownReading(
+    timer: TimerState,
+    now: State<Long>,
+    ringSize: Dp,
+    finished: Boolean,
+    dim: State<Float>,
+) {
+    val colors = BedrockTheme.colors
+    val readout by remember(timer) { derivedStateOf { countdownReadout(timer.remainingAt(now.value)) } }
+    val tone by animateColorAsState(
+        targetValue = if (finished) colors.accentSoft else colors.textPrimary,
+        animationSpec = tween(BrDurations.Swap, easing = BrMotion.Calm),
+        label = "readoutTone"
+    )
+    // "04:42" fills the ring; "1:04:42" steps down so it still fits.
+    val fontSize = (ringSize.value * if (readout.length > 5) 0.165f else 0.22f).sp
+    RollingNumber(
+        text = readout,
+        style = BedrockTheme.typography.numeral.copy(fontSize = fontSize, lineHeight = fontSize * 1.1f),
+        color = tone,
+        modifier = Modifier
+            .graphicsLayer { alpha = 1f - 0.5f * dim.value }
+            .clearAndSetSemantics { contentDescription = readout }
+    )
 }
 
 private fun endsAt(endAtMillis: Long): String =
     Instant.ofEpochMilli(endAtMillis).atZone(ZoneId.systemDefault())
         .format(DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault()))
-
-private fun DrawScope.drawTimerRing(fraction: Float, dim: Boolean, track: Color, accent: Color) {
-    val scale = size.minDimension / 288f
-    val c = center
-    val r = 123.4f * scale
-    // Inner ambient glow
-    drawCircle(
-        brush = Brush.radialGradient(listOf(accent.copy(alpha = if (dim) 0.07f else 0.15f), Color.Transparent), center = c, radius = r),
-        radius = r,
-        center = c
-    )
-    drawCircle(track, radius = r, center = c, style = Stroke(width = 8f * scale))
-    if (fraction <= 0f) return
-    val arcColor = if (dim) accent.copy(alpha = 0.5f) else accent
-    val topLeft = Offset(c.x - r, c.y - r)
-    val arcSize = Size(r * 2, r * 2)
-    val sweep = 360f * fraction
-    drawIntoCanvas { canvas ->
-        val paint = android.graphics.Paint().apply {
-            isAntiAlias = true
-            style = android.graphics.Paint.Style.STROKE
-            strokeWidth = 9f * scale
-            strokeCap = android.graphics.Paint.Cap.ROUND
-            color = arcColor.copy(alpha = if (dim) 0.25f else 0.6f).toArgb()
-            maskFilter = BlurMaskFilter(16f * scale, BlurMaskFilter.Blur.NORMAL)
-        }
-        canvas.nativeCanvas.drawArc(topLeft.x, topLeft.y, topLeft.x + arcSize.width, topLeft.y + arcSize.height, -90f, sweep, false, paint)
-    }
-    // Remaining time drains counter-clockwise from 12 o'clock.
-    drawArc(
-        color = arcColor,
-        startAngle = -90f,
-        sweepAngle = sweep,
-        useCenter = false,
-        topLeft = topLeft,
-        size = arcSize,
-        style = Stroke(width = 8.2f * scale, cap = StrokeCap.Round)
-    )
-}

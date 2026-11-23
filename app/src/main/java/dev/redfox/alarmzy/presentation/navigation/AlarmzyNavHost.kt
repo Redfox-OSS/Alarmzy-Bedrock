@@ -1,19 +1,10 @@
 package dev.redfox.alarmzy.presentation.navigation
 
 import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.core.VisibilityThreshold
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.ui.unit.IntOffset
 import androidx.navigation.NamedNavArgument
 import androidx.navigation.NavGraphBuilder
-import dev.redfox.obsidian.motion.RevealScope
+import dev.redfox.bedrock.motion.BrTransitions
+import dev.redfox.bedrock.motion.RevealScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -78,43 +69,28 @@ fun AlarmzyNavHost(
         navController = navController,
         startDestination = BottomNavScreen.Alarms.route,
         modifier = modifier,
-        // Tabs glide sideways in the direction of travel; pushed screens slide in over a
-        // receding, dimming parent (iOS-style parallax). All springs, so predictive back can
-        // scrub them.
+        // Bedrock motion: a pushed screen glides a short way while its parent drifts back a
+        // little (soft parallax); tabs drift from the side they're on. Critically damped springs,
+        // so predictive back scrubs them and nothing overshoots.
         enterTransition = {
             val dir = tabDirection()
-            if (dir != null) {
-                slideInHorizontally(TabSpring) { w -> dir * w / 9 } +
-                    fadeIn(tween(240, delayMillis = 40)) + scaleIn(TabScaleSpring, initialScale = 0.97f)
-            } else {
-                slideInHorizontally(PushSpring) { it / 3 } + fadeIn(tween(220))
-            }
+            if (dir != null) BrTransitions.tab(forward = dir > 0).targetContentEnter
+            else BrTransitions.push().targetContentEnter
         },
         exitTransition = {
             val dir = tabDirection()
-            if (dir != null) {
-                slideOutHorizontally(TabSpring) { w -> -dir * w / 12 } + fadeOut(tween(150))
-            } else {
-                slideOutHorizontally(PushSpring) { -it / 8 } + scaleOut(PushScaleSpring, targetScale = 0.93f) +
-                    fadeOut(tween(300), targetAlpha = 0.25f)
-            }
+            if (dir != null) BrTransitions.tab(forward = dir > 0).initialContentExit
+            else BrTransitions.push().initialContentExit
         },
         popEnterTransition = {
             val dir = tabDirection()
-            if (dir != null) {
-                slideInHorizontally(TabSpring) { w -> dir * w / 9 } + fadeIn(tween(240, delayMillis = 40))
-            } else {
-                slideInHorizontally(PushSpring) { -it / 8 } + scaleIn(PushScaleSpring, initialScale = 0.93f) +
-                    fadeIn(tween(260), initialAlpha = 0.25f)
-            }
+            if (dir != null) BrTransitions.tab(forward = dir > 0).targetContentEnter
+            else BrTransitions.pop().targetContentEnter
         },
         popExitTransition = {
             val dir = tabDirection()
-            if (dir != null) {
-                slideOutHorizontally(TabSpring) { w -> -dir * w / 12 } + fadeOut(tween(150))
-            } else {
-                slideOutHorizontally(PushSpring) { it / 3 } + fadeOut(tween(200))
-            }
+            if (dir != null) BrTransitions.tab(forward = dir > 0).initialContentExit
+            else BrTransitions.pop().initialContentExit
         }
     ) {
         screen(BottomNavScreen.Alarms.route) {
@@ -270,10 +246,6 @@ fun AlarmzyNavHost(
     }
 }
 
-private val TabSpring = spring(dampingRatio = 0.9f, stiffness = 420f, visibilityThreshold = IntOffset.VisibilityThreshold)
-private val TabScaleSpring = spring(dampingRatio = 0.9f, stiffness = 420f, visibilityThreshold = 0.001f)
-private val PushSpring = spring(dampingRatio = 1f, stiffness = 380f, visibilityThreshold = IntOffset.VisibilityThreshold)
-private val PushScaleSpring = spring(dampingRatio = 1f, stiffness = 380f, visibilityThreshold = 0.001f)
 
 /**
  * For a switch between two tabs, +1 when moving to a tab on the right, -1 to the left;

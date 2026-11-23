@@ -1,80 +1,100 @@
 package dev.redfox.alarmzy.presentation.alarmringing
 
-import androidx.annotation.DrawableRes
+import android.os.SystemClock
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AlarmOff
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import dev.redfox.alarmzy.R
 import dev.redfox.alarmzy.domain.model.AlarmButtonLayout
 import dev.redfox.alarmzy.domain.model.AlarmClockPosition
-import dev.redfox.obsidian.effects.glow
-import dev.redfox.obsidian.effects.pressable
-import dev.redfox.obsidian.theme.ObsidianTheme
-import dev.redfox.obsidian.theme.InterFontFamily
+import dev.redfox.alarmzy.domain.model.Quote
+import dev.redfox.bedrock.components.BrButton
+import dev.redfox.bedrock.components.ButtonVariant
+import dev.redfox.bedrock.components.GlassCard
+import dev.redfox.bedrock.effects.Aura
+import dev.redfox.bedrock.effects.GlassBackdrop
+import dev.redfox.bedrock.effects.LocalHazeState
+import dev.redfox.bedrock.effects.aura
+import dev.redfox.bedrock.motion.BrDurations
+import dev.redfox.bedrock.motion.BrMotion
+import dev.redfox.bedrock.motion.RevealScope
+import dev.redfox.bedrock.motion.revealOnEnter
+import dev.redfox.bedrock.theme.BedrockTheme
+import dev.redfox.bedrock.theme.BrShapes
+import dev.redfox.bedrock.theme.BrSpacing
 import java.io.File
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dev.redfox.obsidian.motion.revealOnEnter
-import dev.redfox.alarmzy.domain.model.Quote
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
-import dev.redfox.obsidian.theme.ObShapes
-import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
-private val CLOCK_TEXT_SIZE = 84.sp
+/** The ringing clock: Bedrock's `numeral`, scaled up to read from across a dark room. */
+private val ClockTextSize = 88.sp
+private val ClockLineHeight = 92.sp
+
+/** Snooze / Dismiss are taller than a standard large button: they're hit by someone half asleep. */
+private val RingButtonHeight = 64.dp
+
+/**
+ * One full breath of the aura (in and out). Half the aura's drift lap: about seven breaths a
+ * minute, a resting rhythm, slow enough to be felt rather than watched.
+ */
+private const val BreathMillis = BrDurations.Ambient / 2
+
+/** The breath ticks at the aura drift's cadence, so the glass above re-blurs no more often. */
+private const val BreathFrameMillis = 48L
+
+/** How much the page tone veils the aura at the top and bottom of a breath. */
+private const val VeilBright = 0.12f
+private const val VeilDim = 0.30f
+
+/** A firmer floor than the stock aura, so the quote and buttons at the bottom stay readable. */
+private const val RingAuraShade = 0.42f
 
 /**
  * The full-screen alarm-ringing layout, shared by the real [dev.redfox.alarmzy.alarm.AlarmRingingActivity]
  * and the settings customization screen's live preview — keeping both in sync by construction.
+ *
+ * The default backdrop is a full-bleed, drifting aura in the current accent that breathes slowly;
+ * a user-chosen photo replaces it. The time sits large and light in the middle (or near the top),
+ * with Snooze and Dismiss as large frosted and ink pills at the bottom.
  */
 @Composable
 fun AlarmRingingContent(
@@ -90,16 +110,15 @@ fun AlarmRingingContent(
     /** Wake-up quote shown in a frosted card above the buttons; null hides it. */
     quote: Quote? = null,
     /**
-     * Live-blur the quote card. Off for the scaled-down Settings preview: Haze samples in
-     * unscaled window coordinates, so inside a scaled mockup the blur layer misaligns and leaves
-     * an unblurred strip. The preview uses the settled frosted tint instead.
+     * Live-blur the glass (quote card, Snooze). Off for the scaled-down Settings preview: Haze
+     * samples in unscaled window coordinates, so inside a scaled mockup the blur layer misaligns
+     * and leaves an unblurred strip. The preview uses glass's settled frosted fallback instead.
      */
     liveBlur: Boolean = true,
 ) {
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
+    val colors = BedrockTheme.colors
+    val type = BedrockTheme.typography
     val hasImage = backgroundImagePath != null
-    val textColor = if (hasImage) Color.White else colors.textPrimary
     val currentDate = remember {
         LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault()))
     }
@@ -110,264 +129,258 @@ fun AlarmRingingContent(
     val digits = time.substringBeforeLast(' ', time)
     val meridiem = time.substringAfterLast(' ', "").takeIf { it != time }.orEmpty()
 
-    // Living screen: the bloom breathes, sonar rings pulse out of the clock, the CTA glows.
-    val ambient = rememberInfiniteTransition(label = "ringAmbient")
-    val breathe by ambient.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(2400, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "breathe"
-    )
-    val sonar by ambient.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(3000, easing = LinearEasing)),
-        label = "sonar"
-    )
-    val ringColor = if (hasImage) Color.White else colors.accent
-
-    // Own blur source: the quote card frosts whatever is behind it (photo or accent bloom).
-    val ringHaze = rememberHazeState()
-
-    Box(modifier = modifier.fillMaxSize().background(colors.background)) {
-      Box(Modifier.fillMaxSize().hazeSource(ringHaze)) {
-        if (backgroundImagePath != null) {
-            AsyncImage(
-                model = File(backgroundImagePath),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-            // Guarantees text/button legibility over an arbitrary user photo — not optional.
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0f to Color.Black.copy(alpha = 0.15f),
-                            0.55f to Color.Black.copy(alpha = 0.35f),
-                            1f to Color.Black.copy(alpha = 0.75f)
-                        )
+    RevealScope {
+        RingStage(
+            liveBlur = liveBlur,
+            modifier = modifier.fillMaxSize().background(colors.background),
+            backdrop = {
+                if (backgroundImagePath != null) {
+                    AsyncImage(
+                        model = File(backgroundImagePath),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
-            )
-        } else {
-            // Ambient accent bloom behind the clock.
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.radialGradient(
-                            0f to colors.accent.copy(alpha = 0.22f + 0.1f * breathe),
-                            0.55f to colors.accent.copy(alpha = 0.04f + 0.04f * breathe),
-                            1f to Color.Transparent,
-                            radius = 1250f + 250f * breathe
-                        )
+                    // Guarantees text/button legibility over an arbitrary user photo — not optional.
+                    // (Bedrock has no text shadows, so the scrim carries the clock on its own.)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    0f to Color.Black.copy(alpha = 0.22f),
+                                    0.55f to Color.Black.copy(alpha = 0.42f),
+                                    1f to Color.Black.copy(alpha = 0.78f)
+                                )
+                            )
                     )
-            )
-        }
-      }
-
-        // Independent of clockPosition — always pinned near the top.
-        if (label.isNotBlank()) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .revealOnEnter(0, offsetY = (-16).dp)
-                    .padding(top = 64.dp)
-                    .padding(horizontal = 32.dp)
-                    .clip(CircleShape)
-                    .background(if (hasImage) Color.Black.copy(alpha = 0.35f) else colors.accentContainer)
-                    .border(1.dp, if (hasImage) Color.White.copy(alpha = 0.2f) else colors.accentBorder, CircleShape)
-                    .padding(horizontal = 18.dp, vertical = 8.dp)
-            ) {
+                } else {
+                    BreathingAura(Modifier.fillMaxSize())
+                }
+            }
+        ) {
+            // Independent of clockPosition — always pinned near the top.
+            if (label.isNotBlank()) {
                 Text(
-                    text = label.uppercase(),
+                    text = label,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .revealOnEnter(0)
+                        .padding(top = 64.dp)
+                        .padding(horizontal = BrSpacing.XXL),
                     textAlign = TextAlign.Center,
-                    style = type.sectionLabel.copy(letterSpacing = 0.1.em),
-                    color = if (hasImage) Color.White else colors.accentLight,
-                    maxLines = 1
+                    style = type.headline,
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-        }
 
-        // Clock + date move together between top/middle per clockPosition.
-        Column(
-            modifier = Modifier
-                .align(if (clockPosition == AlarmClockPosition.TOP) Alignment.TopCenter else Alignment.Center)
-                .padding(top = if (clockPosition == AlarmClockPosition.TOP) 140.dp else 0.dp)
-                .padding(horizontal = 32.dp)
-                .drawBehind {
-                    // Three staggered rings expanding from behind the time, fading as they grow.
-                    val base = size.minDimension * 0.55f
-                    for (k in 0 until 3) {
-                        val t = (sonar + k / 3f) % 1f
-                        drawCircle(
-                            ringColor.copy(alpha = 0.22f * (1f - t) * (1f - t)),
-                            radius = base + size.maxDimension * 0.55f * t,
-                            style = Stroke(width = 1.5.dp.toPx())
+            // Clock + date move together between top/middle per clockPosition.
+            Column(
+                modifier = Modifier
+                    .align(if (clockPosition == AlarmClockPosition.TOP) Alignment.TopCenter else Alignment.Center)
+                    .padding(top = if (clockPosition == AlarmClockPosition.TOP) 140.dp else 0.dp)
+                    .padding(horizontal = BrSpacing.XXL)
+                    .revealOnEnter(1, offsetY = BrSpacing.XL)
+                    .semantics(mergeDescendants = true) {},
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row {
+                    Text(
+                        text = digits,
+                        modifier = Modifier.alignByBaseline(),
+                        maxLines = 1,
+                        softWrap = false,
+                        style = type.numeral.copy(fontSize = ClockTextSize, lineHeight = ClockLineHeight),
+                        color = colors.textPrimary
+                    )
+                    if (meridiem.isNotEmpty()) {
+                        Spacer(Modifier.width(BrSpacing.S))
+                        Text(
+                            text = meridiem,
+                            style = type.title.copy(fontWeight = FontWeight.Light),
+                            color = colors.textSecondary,
+                            maxLines = 1,
+                            modifier = Modifier.alignByBaseline()
                         )
                     }
                 }
-                .revealOnEnter(1, offsetY = 30.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row {
+                Spacer(Modifier.height(BrSpacing.XS))
                 Text(
-                    text = digits,
-                    modifier = Modifier.alignByBaseline(),
+                    text = currentDate,
                     maxLines = 1,
                     softWrap = false,
-                    style = TextStyle(
-                        fontFamily = InterFontFamily,
-                        fontSize = CLOCK_TEXT_SIZE,
-                        fontWeight = FontWeight.Light,
-                        letterSpacing = (-0.04).em,
-                        color = textColor,
-                        shadow = if (hasImage) Shadow(Color.Black.copy(alpha = 0.6f), blurRadius = 16f) else null
-                    )
+                    style = type.bodyLarge,
+                    color = colors.textSecondary
                 )
-                if (meridiem.isNotEmpty()) {
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = meridiem,
-                        style = type.title.copy(fontWeight = FontWeight.Medium),
-                        color = if (hasImage) Color.White.copy(alpha = 0.85f) else colors.accentLight,
-                        modifier = Modifier.alignByBaseline()
-                    )
+            }
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .revealOnEnter(3, offsetY = BrSpacing.XL)
+                    .padding(horizontal = BrSpacing.XL, vertical = 48.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (quote != null) {
+                    QuoteCard(quote = quote, onPhoto = hasImage)
+                    Spacer(Modifier.height(BrSpacing.XL))
                 }
-            }
-            Text(
-                text = currentDate,
-                maxLines = 1,
-                softWrap = false,
-                style = type.bodyLarge.copy(fontWeight = FontWeight.Normal),
-                color = textColor.copy(alpha = 0.75f)
-            )
-        }
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .revealOnEnter(3, offsetY = 40.dp)
-                .padding(horizontal = 28.dp, vertical = 48.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (quote != null) {
-                QuoteCard(quote = quote, haze = ringHaze.takeIf { liveBlur }, onPhoto = hasImage, glow = breathe)
-                Spacer(Modifier.height(22.dp))
-            }
-            when (buttonLayout) {
-                AlarmButtonLayout.BOTH -> Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    RingButton("Snooze", R.drawable.ic_snooze, primary = false, onClick = onSnooze, modifier = Modifier.weight(1f))
-                    RingButton(dismissLabel, null, primary = true, onClick = onDismiss, glow = breathe, modifier = Modifier.weight(1f))
+                when (buttonLayout) {
+                    AlarmButtonLayout.BOTH -> Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(BrSpacing.M)
+                    ) {
+                        SnoozeButton(onSnooze, ButtonVariant.Glass, Modifier.weight(1f))
+                        DismissButton(dismissLabel, onDismiss, Modifier.weight(1f))
+                    }
+                    // Alone, Snooze is the one action on screen, so it takes the ink pill.
+                    AlarmButtonLayout.SNOOZE_ONLY ->
+                        SnoozeButton(onSnooze, ButtonVariant.Ink, Modifier.fillMaxWidth())
+                    AlarmButtonLayout.DISMISS_ONLY ->
+                        DismissButton(dismissLabel, onDismiss, Modifier.fillMaxWidth())
                 }
-                AlarmButtonLayout.SNOOZE_ONLY ->
-                    RingButton("Snooze", R.drawable.ic_snooze, primary = true, onClick = onSnooze, glow = breathe, modifier = Modifier.fillMaxWidth())
-                AlarmButtonLayout.DISMISS_ONLY ->
-                    RingButton(dismissLabel, null, primary = true, onClick = onDismiss, glow = breathe, modifier = Modifier.fillMaxWidth())
+
+                Spacer(Modifier.height(BrSpacing.L))
+                Text(
+                    text = "It's currently $currentTime",
+                    style = type.figure,
+                    color = colors.textSecondary
+                )
             }
-
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = "It's currently $currentTime",
-                style = type.body,
-                color = textColor.copy(alpha = 0.6f)
-            )
         }
-    }
-}
-
-/** Large pill action: accent + glow when [primary], frosted neutral otherwise. */
-@Composable
-private fun RingButton(
-    text: String,
-    @DrawableRes icon: Int?,
-    primary: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    /** 0..1 breathing phase for the primary glow. */
-    glow: Float = 0.5f,
-) {
-    val colors = ObsidianTheme.colors
-    val content = if (primary) colors.onAccent else colors.textPrimary
-    Row(
-        modifier = modifier
-            .then(
-                if (primary) Modifier.glow(colors.accent.copy(alpha = 0.3f + 0.3f * glow), CircleShape, radius = 20.dp + 10.dp * glow, offsetY = 8.dp)
-                else Modifier
-            )
-            .pressable(pressedScale = 0.94f, haptic = HapticFeedbackType.Confirm, onClick = onClick)
-            .height(64.dp)
-            .clip(CircleShape)
-            .background(if (primary) colors.accent else colors.tile.copy(alpha = 0.85f))
-            .border(1.dp, if (primary) Color.White.copy(alpha = 0.15f) else colors.borderStrong, CircleShape),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (icon != null) {
-            Icon(painterResource(icon), contentDescription = null, tint = content)
-        } else {
-            Icon(Icons.Rounded.AlarmOff, contentDescription = null, tint = content, modifier = Modifier.size(22.dp))
-        }
-        Spacer(Modifier.width(10.dp))
-        Text(text, style = ObsidianTheme.typography.button, color = content)
     }
 }
 
 /**
- * Frosted-glass quote card: blurs the alarm background like the app's top/nav bars, with the
- * accent glow gently breathing in time with the Dismiss button.
+ * The screen's stage: [backdrop] fills it and [content] floats above. With [liveBlur], glass in
+ * [content] frosts the backdrop through a [GlassBackdrop]. Without it, glass is told there is no
+ * blur source, so it settles to its solid frosted fallback (the scaled Settings preview).
  */
 @Composable
-private fun QuoteCard(quote: Quote, haze: HazeState?, onPhoto: Boolean, glow: Float) {
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
-    val shape = ObShapes.CardLarge
-    val tint = if (onPhoto) Color.Black.copy(alpha = 0.35f) else colors.navScrim
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .glow(colors.accent.copy(alpha = 0.14f + 0.12f * glow), shape, radius = 26.dp)
-            .clip(shape)
-            .then(
-                if (haze != null) Modifier.hazeEffect(
-                    haze,
-                    HazeStyle(
-                        backgroundColor = colors.background,
-                        tints = listOf(HazeTint(tint)),
-                        blurRadius = 22.dp,
-                        noiseFactor = 0f,
-                    )
-                )
-                // No live blur: the frosted look it settles to (dark base + the same tint).
-                else Modifier.background(if (onPhoto) Color.Black.copy(alpha = 0.45f) else colors.background.copy(alpha = 0.55f)).background(tint)
-            )
-            .border(1.dp, colors.accentLight.copy(alpha = 0.22f + 0.12f * glow), shape)
-            .padding(horizontal = 22.dp, vertical = 18.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+private fun RingStage(
+    liveBlur: Boolean,
+    modifier: Modifier,
+    backdrop: @Composable BoxScope.() -> Unit,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    if (liveBlur) {
+        GlassBackdrop(modifier = modifier, backdrop = backdrop, content = content)
+    } else {
+        Box(modifier) {
+            Box(Modifier.matchParentSize(), content = backdrop)
+            CompositionLocalProvider(LocalHazeState provides null) {
+                content()
+            }
+        }
+    }
+}
+
+/**
+ * The default backdrop: a full-bleed aura in the current accent whose lights drift, veiled by the
+ * page tone that thins and thickens over one slow breath. It replaces the old pulsing bloom and
+ * sonar rings: alive, but nothing to look at. The breath is read in the draw phase and ticks at
+ * the drift's cadence, so it never recomposes and doesn't add blur passes to the glass above.
+ */
+@Composable
+private fun BreathingAura(modifier: Modifier = Modifier) {
+    val colors = BedrockTheme.colors
+    val accent = colors.accent
+    val aura = remember(accent) { Aura.of(accent).copy(shade = RingAuraShade) }
+    val veil = colors.background
+    val breath = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) {
+        val start = SystemClock.uptimeMillis()
+        while (isActive) {
+            val t = ((SystemClock.uptimeMillis() - start) % BreathMillis) / BreathMillis.toFloat()
+            // 0 -> 1 -> 0 over one breath, easing in and out at both ends.
+            val swing = if (t < 0.5f) t * 2f else (1f - t) * 2f
+            breath.floatValue = BrMotion.Soft.transform(swing)
+            delay(BreathFrameMillis)
+        }
+    }
+    Box(
+        modifier
+            .aura(aura, drift = true)
+            .drawBehind {
+                val inhale = breath.floatValue
+                drawRect(veil.copy(alpha = VeilDim + (VeilBright - VeilDim) * inhale))
+            }
+    )
+}
+
+/** Snooze: frosted beside Dismiss, ink when it's the only action. */
+@Composable
+private fun SnoozeButton(onSnooze: () -> Unit, variant: ButtonVariant, modifier: Modifier = Modifier) {
+    val haptics = LocalHapticFeedback.current
+    BrButton(
+        text = "Snooze",
+        onClick = {
+            // Ink buttons tick on their own; glass ones don't, and Snooze always confirmed.
+            if (variant != ButtonVariant.Ink) haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+            onSnooze()
+        },
+        modifier = modifier.height(RingButtonHeight),
+        variant = variant,
+        icon = painterResource(R.drawable.ic_snooze)
+    )
+}
+
+/** Dismiss (or Stop, for timers): the warm-white ink pill, the one loud thing on screen. */
+@Composable
+private fun DismissButton(text: String, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    BrButton(
+        text = text,
+        onClick = onDismiss,
+        modifier = modifier.height(RingButtonHeight),
+        variant = ButtonVariant.Ink,
+        icon = rememberVectorPainter(Icons.Rounded.AlarmOff)
+    )
+}
+
+/**
+ * The wake-up quote on frosted glass over the aura or photo: a quiet accent quotation mark, the
+ * quote, and its author in a softer tone. Over a photo the glass is heavier, since the photo can
+ * be anything.
+ */
+@Composable
+private fun QuoteCard(quote: Quote, onPhoto: Boolean) {
+    val colors = BedrockTheme.colors
+    val type = BedrockTheme.typography
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = BrShapes.XLarge,
+        tint = if (onPhoto) colors.glassStrong else colors.glass,
+        contentPadding = PaddingValues(horizontal = BrSpacing.XL, vertical = BrSpacing.L)
     ) {
-        Text(
-            "\u201C",
-            style = TextStyle(fontFamily = InterFontFamily, fontSize = 34.sp, fontWeight = FontWeight.Bold, lineHeight = 28.sp),
-            color = colors.accent
-        )
-        Text(
-            quote.text,
-            style = type.body.copy(fontSize = 16.sp, lineHeight = 23.sp, fontWeight = FontWeight.Medium),
-            color = if (onPhoto) Color.White else colors.textPrimary,
-            textAlign = TextAlign.Center,
-            maxLines = 4,
-            overflow = TextOverflow.Ellipsis
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "\u2014 ${quote.author}",
-            style = type.label.copy(letterSpacing = 0.04.em),
-            color = if (onPhoto) Color.White.copy(alpha = 0.75f) else colors.accentLight
-        )
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "“",
+                style = type.title.copy(lineHeight = type.title.fontSize),
+                color = colors.accentSoft
+            )
+            Text(
+                quote.text,
+                style = type.bodyLarge,
+                color = colors.textPrimary,
+                textAlign = TextAlign.Center,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(BrSpacing.S))
+            Text(
+                "— ${quote.author}",
+                style = type.caption,
+                color = colors.textSecondary,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }

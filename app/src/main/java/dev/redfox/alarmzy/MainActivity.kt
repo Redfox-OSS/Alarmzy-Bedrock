@@ -39,16 +39,19 @@ import dev.redfox.alarmzy.presentation.navigation.AlarmzyNavHost
 import dev.redfox.alarmzy.presentation.navigation.BottomNavBar
 import dev.redfox.alarmzy.presentation.navigation.BottomNavScreen
 import dev.redfox.alarmzy.presentation.settings.SettingsViewModel
-import dev.redfox.obsidian.effects.LocalHazeState
+import dev.redfox.bedrock.effects.LocalHazeState
 import dev.redfox.alarmzy.ui.theme.AlarmzyTheme
-import dev.redfox.obsidian.theme.ObsidianTheme
-import androidx.compose.animation.core.spring
+import dev.redfox.bedrock.theme.BedrockTheme
+import dev.redfox.bedrock.motion.BrDurations
+import dev.redfox.bedrock.motion.BrMotion
+import dev.redfox.bedrock.navigation.rememberCompactNavState
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.ui.unit.IntOffset
 import dev.redfox.alarmzy.presentation.update.InAppUpdater
 import dev.redfox.alarmzy.presentation.update.UpdateReadyBanner
-import dev.redfox.obsidian.navigation.floatingNavClearance
+import dev.redfox.bedrock.navigation.brNavClearance
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -105,6 +108,8 @@ class MainActivity : ComponentActivity() {
                 val currentRoute = navBackStackEntry?.destination?.route
                 val showBottomBar = BottomNavScreen.isTabRoute(currentRoute)
                 val hazeState = rememberHazeState()
+                // The tab bar eases into its compact form while a list scrolls toward its end.
+                val compactNav = rememberCompactNavState(resetKey = currentRoute)
 
                 LaunchedEffect(pendingTab) {
                     val tab = BottomNavScreen.entries.firstOrNull { it.route == pendingTab } ?: return@LaunchedEffect
@@ -120,7 +125,8 @@ class MainActivity : ComponentActivity() {
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .background(ObsidianTheme.colors.background)
+                            .background(BedrockTheme.colors.background)
+                            .nestedScroll(compactNav.connection)
                     ) {
                         AlarmzyNavHost(
                             navController = navController,
@@ -132,22 +138,24 @@ class MainActivity : ComponentActivity() {
                         // "Update ready · Restart" once a flexible Play update has downloaded.
                         AnimatedVisibility(
                             visible = inAppUpdater.readyToInstall,
-                            enter = slideInVertically(spring(dampingRatio = 0.7f, stiffness = 380f, visibilityThreshold = IntOffset.VisibilityThreshold)) { it } + fadeIn(),
-                            exit = slideOutVertically { it } + fadeOut(),
+                            enter = slideInVertically(BrMotion.glide(IntOffset.VisibilityThreshold)) { it / 2 } +
+                                fadeIn(tween(BrDurations.Enter, easing = BrMotion.Calm)),
+                            exit = slideOutVertically(BrMotion.settle(IntOffset.VisibilityThreshold)) { it / 2 } +
+                                fadeOut(tween(BrDurations.Fade)),
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
-                                .padding(bottom = if (showBottomBar) floatingNavClearance() + 12.dp else WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 96.dp)
+                                .padding(bottom = if (showBottomBar) brNavClearance() else WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 96.dp)
                         ) {
                             UpdateReadyBanner(onRestart = { inAppUpdater.completeUpdate() })
                         }
 
                         AnimatedVisibility(
                             visible = showBottomBar,
-                            // Rises with a soft bounce when returning from a detail screen.
-                            enter = slideInVertically(spring(dampingRatio = 0.72f, stiffness = 380f, visibilityThreshold = IntOffset.VisibilityThreshold)) { it } +
-                                fadeIn(tween(200)),
-                            exit = slideOutVertically(spring(dampingRatio = 1f, stiffness = 500f, visibilityThreshold = IntOffset.VisibilityThreshold)) { it } +
-                                fadeOut(tween(150)),
+                            // Rises calmly when returning from a detail screen; sinks away when leaving.
+                            enter = slideInVertically(BrMotion.glide(IntOffset.VisibilityThreshold)) { it / 2 } +
+                                fadeIn(tween(BrDurations.Enter, easing = BrMotion.Calm)),
+                            exit = slideOutVertically(BrMotion.settle(IntOffset.VisibilityThreshold)) { it / 2 } +
+                                fadeOut(tween(BrDurations.Fade)),
                             modifier = Modifier.align(Alignment.BottomCenter)
                         ) {
                             BottomNavBar(
@@ -160,7 +168,8 @@ class MainActivity : ComponentActivity() {
                                         launchSingleTop = true
                                         restoreState = true
                                     }
-                                }
+                                },
+                                compact = compactNav.compact
                             )
                         }
                     }

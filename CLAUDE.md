@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Alarmzy is a standalone Android alarm app whose differentiating feature is **alarm grouping**: users create named groups (Work, Gym, etc.) and a master toggle on each group enables/disables all member alarms at once — cascading the schedule/cancel down to every alarm in the group. Google Clock lacks this; Samsung's clock has it but is device-locked.
 
-One module, `:app` (package `dev.redfox.alarmzy`, min SDK 31 / target/compile SDK 36). The design system comes from the Obsidian library (`dev.redfox:obsidian`, github.com/Redfox-OSS/obsidian).
+One module, `:app` (package `dev.redfox.alarmzy`, min SDK 31 / target/compile SDK 36). The design system is Bedrock (`dev.redfox:bedrock`, github.com/Redfox-OSS/bedrock), built from a sibling checkout at `../Bedrock`. This repository is Alarmzy rebuilt on Bedrock (Obsidian's calmer successor); the Obsidian version lives at github.com/Redfox-OSS/Alarmzy. It installs as its own app (`dev.redfox.alarmzy.bedrock`, "Alarmzy Bedrock"), so both can sit on one phone.
 
 Alarmzy is free and open source (GPL-3.0): every feature is available to everyone. There is no billing, Pro tier or paywall — don't add feature gates.
 
@@ -46,18 +46,22 @@ Every screen has four files: `XUiState` (immutable data class), `XIntent` (seale
 
 Navigation lives entirely in `presentation/navigation/AlarmzyNavHost.kt` + `Screen.kt` (routes). `MainActivity` hosts the `NavHost` in a `Box` with a floating frosted-glass pill nav (`BottomNavBar`) overlaid at the bottom, shown only on the five `BottomNavScreen` tabs (Alarms, Timer, Stopwatch, Groups, Settings). Tab screens pad their scrolling content by `floatingNavClearance()`. Theme (accent + dark variant) is driven reactively from `SettingsViewModel` at the `MainActivity` level.
 
-### Design system (Obsidian)
+### Design system (Bedrock)
 
-The look comes from **Obsidian**, a separate open-source Compose library: `dev.redfox:obsidian` from the Maven repository at `https://redfox-oss.github.io/obsidian/maven` (version in `gradle/libs.versions.toml`, source at github.com/Redfox-OSS/obsidian). Its `docs/GUIDE.md` is the full spec, and its catalog app shows every token, component and transition. To change Obsidian itself, work in that repository (or `includeBuild("../obsidian")` locally) — not here. App-specific visuals (group icons/swatches in `ui/components/GroupVisuals.kt`) stay in `:app`.
+The look comes from **Bedrock**, a separate open-source Compose library (github.com/Redfox-OSS/bedrock). It isn't published to a Maven repository yet, so `settings.gradle.kts` builds it from source with `includeBuild("../Bedrock")`, substituting `dev.redfox:bedrock`: clone Bedrock next to this repository. A change in Bedrock shows up here on the next build; change Bedrock in its own repository, not here. Its `docs/GUIDE.md` is the full spec and its catalog app shows every token, component and motion. `docs/BEDROCK_MIGRATION.md` here maps every Obsidian API this app used to its Bedrock replacement.
 
-- **Always dark.** There is no light/system theme. `ui/theme/Theme.kt`'s `AlarmzyTheme(accentColor, darkVariant)` is a thin adapter mapping the persisted domain `AccentColor` / `DarkVariant` onto `ObsidianTheme(ObsidianAccent, ObsidianNeutrals)` — a new accent/ramp needs an entry in both.
-- Read tokens via `ObsidianTheme.colors` / `ObsidianTheme.typography`, **not** `MaterialTheme`. Numbers use `numericLarge`/`numericTile`/`numericMedium`/`numericSmall` with `unit` for AM/PM. Shapes/spacing: `ObShapes`, `ObSpacing`, `ScreenGutter`.
-- Prefer Obsidian components (`ObCard`, `ObSwitch`, `ChoicePill`, `SegmentedPill`, `ObCheckbox`, `PrimaryButton`, `ActionPillButton`, `ObFab`, `LargeHeader`/`DetailHeader`, `ObDropdownMenu`, `ObAlertDialog`, `ObSheet`…) over stock M3.
-- Icons are vector drawables `res/drawable/ic_*.xml` (Material Symbols Rounded), tinted at use. A few glyphs (delete, select-all, close, play/stop, alarm-off, warning, music library) temporarily use `Icons.Rounded.*`.
-- **Glass and glow:** one `HazeState` via `LocalHazeState`; scrolling content gets `Modifier.glassSource()`, headers/nav use `Modifier.glassEffect(tint)` as *siblings*. Glows use the `ObGlows` presets, before `clip`.
+- **Always dark.** `ui/theme/Theme.kt`'s `AlarmzyTheme(accentColor, darkVariant)` maps the persisted `AccentColor` (Ember, Tide, Moss, Rose, Iris, Sand) / `DarkVariant` (Basalt, Slate, Pitch) onto `BedrockTheme(BedrockAccent, BedrockNeutrals)`; a new option needs an entry in both.
+- Read tokens via `BedrockTheme.colors` / `BedrockTheme.typography`, **not** `MaterialTheme`. Numbers use the tabular `numeral` / `figureLarge` / `figure`. Shapes and spacing: `BrShapes` (nested corners via `BrShapes.concentric`), `BrSpacing` (`Gutter` 20 at every page edge, `Section` 40 between sections).
+- **No glows**: colour lives inside surfaces (accent containers, at most one `AuraCard` / `Modifier.aura` hero per screen). The only shadow is `floatShadow`, for floating things.
+- **Nothing overshoots**: springs are `BrMotion.quick/settle/glide` (all critically damped); timed motion uses `BrMotion.Calm` and `BrDurations`. Never add a bouncy spec.
+- **Sentence case** for all UI text; no uppercase labels.
+- Prefer Bedrock components (`BrCard`, `ListGroup`/`ListRow`, `BrSwitch`, `BrCheckbox`, `BrChip`, `BrDayChip`, `SegmentedControl`, `BrButton`, `BrIconButton`, `BrFab`, `BrMenu`, `BrDialog`, `BrSheet`, `BrTextField`, `BrSlider`…) over stock M3. `BrDialog`/`BrSheet` open in their own window; keep them composed and drive `visible` so exits play.
+- **Pages**: a `BrLargeTitle` as the first item of the scrolling content, padded by `topBarClearance()`, with a `BrTopBar` overlay (back, actions) whose glass fades in via `rememberTopBarCollapse(listState | scrollState)`.
+- **Glass**: one `HazeState` via `LocalHazeState`; scrolling content gets `Modifier.glassSource()`; bars and floating controls use `Modifier.glass(shape)` as *siblings*. Glass inside scrolling content goes on a `GlassBackdrop`.
 - Tactile clicks use `Modifier.pressable { }` (no ripple).
-- **Motion:** `ObMotion` springs, `revealOnEnter(index)` / `RevealColumn`, `popOnSelect`, `popIn`, `RollingText`, `HorizontalReveal`, `ExpandEnter`/`CollapseExit`, `HeaderActionsSwap`. Every nav destination is wrapped in a `RevealScope` by the `screen(...)` helper in `AlarmzyNavHost`; entrances replay on arrival but not when popping back (`RevealPolicy`). Nested sections that re-animate on expand (group members, custom days) get their own `RevealScope`. Keep per-frame work in `graphicsLayer`/`placeWithLayer` lambdas.
-- `BottomNavBar` wraps Obsidian's `FloatingNavBar`: a shared pill halo and a per-tab `NavIconMotion`. Pad tab content by `floatingNavClearance()`.
+- **Motion**: `revealOnEnter(index)` / `RevealColumn`, `RollingNumber` / `SwapText`, `BrTransitions.expandIn/collapseOut/revealStart/concealStart/swap`, and `BrTransitions.push/pop/tab` for navigation (`AlarmzyNavHost`). Every nav destination is wrapped in a `RevealScope` by the `screen(...)` helper; entrances replay on arrival but not when popping back (`RevealPolicy`). Keep per-frame work in `graphicsLayer`/layout lambdas.
+- `BottomNavBar` wraps Bedrock's `BrNavBar`: icons only (labels are for screen readers), a pill selection you can hold and scrub across, and a compact form it eases into while content scrolls (`rememberCompactNavState` + `nestedScroll` in `MainActivity`). Pad tab content by `brNavClearance()`.
+- Icons are vector drawables `res/drawable/ic_*.xml` (Material Symbols Rounded), tinted at use; a few glyphs use `Icons.Rounded.*`.
 
 ### Alarm scheduling & playback engine (`alarm/`)
 

@@ -1,18 +1,19 @@
 package dev.redfox.alarmzy.domain.model
 
 /**
- * Accent palette options from the Alarmzy Obsidian design system. [swatch] is the vivid
- * representative hue shown in the picker; the full tonal palette lives in `ui/theme`.
+ * Accent options: Bedrock's six mid-bright families. [swatch] is the family's main tone, shown in
+ * the picker; the full tonal family lives in `ui/theme` (`toBedrock()`).
  */
 enum class AccentColor(val displayName: String, val swatch: Long) {
-    CRIMSON("Crimson", 0xFFFF2A42),
-    ELECTRIC("Electric", 0xFF0084FF),
-    SOLAR("Solar", 0xFFFFB800),
-    EMERALD("Emerald", 0xFF00E676),
-    LUMINOUS("Luminous", 0xFFFFFFFF);
+    EMBER("Ember", 0xFFF2884B),
+    TIDE("Tide", 0xFF4FA6E6),
+    MOSS("Moss", 0xFF5CC28A),
+    ROSE("Rose", 0xFFEC6F8E),
+    IRIS("Iris", 0xFF8E8BF0),
+    SAND("Sand", 0xFFE3B04F);
 
     companion object {
-        val DEFAULT = CRIMSON
+        val DEFAULT = EMBER
 
         /** Parses a persisted name, falling back to [DEFAULT] for removed/unknown accents. */
         fun fromName(name: String?): AccentColor =

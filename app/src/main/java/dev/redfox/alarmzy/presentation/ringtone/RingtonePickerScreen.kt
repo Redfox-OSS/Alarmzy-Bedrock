@@ -4,65 +4,63 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Stop
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.redfox.alarmzy.presentation.alarmedit.BottomActionBar
-import dev.redfox.obsidian.theme.ObShapes
-import dev.redfox.obsidian.components.DetailHeader
-import dev.redfox.obsidian.components.DetailHeaderHeight
-import dev.redfox.obsidian.components.PrimaryButton
-import dev.redfox.obsidian.theme.ScreenGutter
-import dev.redfox.obsidian.components.SectionLabel
-import dev.redfox.obsidian.effects.glassSource
-import dev.redfox.obsidian.effects.pressable
-import dev.redfox.obsidian.theme.ObsidianTheme
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import dev.redfox.obsidian.motion.ObMotion
-import dev.redfox.obsidian.motion.revealOnEnter
+import dev.redfox.alarmzy.presentation.alarmedit.BottomActionBarHeight
+import dev.redfox.bedrock.components.BrButton
+import dev.redfox.bedrock.components.BrIconButton
+import dev.redfox.bedrock.components.BrLargeTitle
+import dev.redfox.bedrock.components.BrRadio
+import dev.redfox.bedrock.components.BrTopBar
+import dev.redfox.bedrock.components.IconButtonVariant
+import dev.redfox.bedrock.components.IconTile
+import dev.redfox.bedrock.components.ListGroup
+import dev.redfox.bedrock.components.ListRow
+import dev.redfox.bedrock.components.SectionHeader
+import dev.redfox.bedrock.components.rememberTopBarCollapse
+import dev.redfox.bedrock.components.topBarClearance
+import dev.redfox.bedrock.effects.glassSource
+import dev.redfox.bedrock.effects.pressable
+import dev.redfox.bedrock.motion.revealOnEnter
+import dev.redfox.bedrock.theme.BedrockTheme
+import dev.redfox.bedrock.theme.BrShapes
+import dev.redfox.bedrock.theme.BrSpacing
 
 @Composable
 fun RingtonePickerScreen(
@@ -72,7 +70,7 @@ fun RingtonePickerScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val colors = ObsidianTheme.colors
+    val colors = BedrockTheme.colors
     val pickAudioLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -87,57 +85,58 @@ fun RingtonePickerScreen(
             onIntent(RingtonePickerIntent.AddCustomRingtone(uri.toString()))
         }
     }
-    val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + DetailHeaderHeight
+    val listState = rememberLazyListState()
+    val collapse = rememberTopBarCollapse(listState)
+    val bottomClearance = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() +
+        BottomActionBarHeight + BrSpacing.XL
     val count = uiState.ringtones.size
 
     Box(modifier.fillMaxSize().background(colors.background)) {
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxSize().glassSource(),
-            contentPadding = PaddingValues(start = ScreenGutter, end = ScreenGutter, top = topInset + 8.dp, bottom = 128.dp)
+            contentPadding = PaddingValues(top = topBarClearance(), bottom = bottomClearance)
         ) {
+            item(key = "title") {
+                BrLargeTitle(title = "Ringtone", collapse = collapse)
+            }
+
             item(key = "choose_from_device") {
-                Row(
-                    modifier = Modifier
-                        .revealOnEnter(0)
-                        .fillMaxWidth()
-                        .pressable(pressedScale = 0.985f) { pickAudioLauncher.launch(arrayOf("audio/*")) }
-                        .clip(ObShapes.CardLarge)
-                        .background(colors.card)
-                        .border(1.dp, colors.accentBorder, ObShapes.CardLarge)
-                        .padding(17.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        Modifier.size(40.dp).clip(ObShapes.Tile).background(colors.accentContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Rounded.LibraryMusic, contentDescription = null, tint = colors.accentLight, modifier = Modifier.size(20.dp))
+                Column(Modifier.padding(horizontal = BrSpacing.Gutter)) {
+                    ListGroup(Modifier.revealOnEnter(0)) {
+                        ListRow(
+                            title = "Choose from device",
+                            subtitle = "Pick any audio file from your device",
+                            leading = {
+                                IconTile(
+                                    icon = rememberVectorPainter(Icons.Rounded.LibraryMusic),
+                                    tint = colors.accentSoft,
+                                    container = colors.accentContainer
+                                )
+                            },
+                            chevron = true,
+                            onClick = { pickAudioLauncher.launch(arrayOf("audio/*")) }
+                        )
                     }
-                    Spacer(Modifier.width(16.dp))
-                    Column {
-                        Text("Choose from device", style = ObsidianTheme.typography.labelStrong, color = colors.textPrimary)
-                        Text("Pick any audio file from your device", style = ObsidianTheme.typography.body, color = colors.textSecondary)
-                    }
+                    Spacer(Modifier.height(BrSpacing.Section))
+                    SectionHeader("Sounds", Modifier.revealOnEnter(1))
                 }
-                Spacer(Modifier.height(24.dp))
-                SectionLabel("Sounds")
-                Spacer(Modifier.height(8.dp))
             }
 
             itemsIndexed(uiState.ringtones, key = { _, it -> it.uri }) { index, ringtone ->
-                // Rows render as one continuous card: round only the outer corners.
-                val shape: Shape = when {
-                    count == 1 -> ObShapes.CardLarge
-                    index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-                    index == count - 1 -> RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
-                    else -> RoundedCornerShape(0.dp)
+                // Rows draw as one continuous group: only the outer corners are rounded.
+                val segment = when {
+                    count == 1 -> Segment.Single
+                    index == 0 -> Segment.First
+                    index == count - 1 -> Segment.Last
+                    else -> Segment.Middle
                 }
                 RingtoneRow(
                     modifier = Modifier.revealOnEnter(index + 2),
                     ringtone = ringtone,
                     isSelected = ringtone.uri == uiState.selectedUri,
                     isPlaying = ringtone.uri == uiState.playingUri && uiState.isPlaying,
-                    shape = shape,
+                    segment = segment,
                     showDivider = index < count - 1,
                     onSelect = { onIntent(RingtonePickerIntent.SelectRingtone(ringtone.uri, ringtone.name)) },
                     onTogglePreview = { playing ->
@@ -148,107 +147,108 @@ fun RingtonePickerScreen(
             }
         }
 
-        DetailHeader(title = "Ringtone", onBack = onNavigateBack, modifier = Modifier.align(Alignment.TopCenter))
+        BrTopBar(
+            title = "Ringtone",
+            collapse = collapse,
+            modifier = Modifier.align(Alignment.TopCenter),
+            onBack = onNavigateBack
+        )
 
         BottomActionBar(modifier = Modifier.align(Alignment.BottomCenter)) {
-            PrimaryButton(text = "Use this sound", onClick = { onIntent(RingtonePickerIntent.Confirm) })
+            BrButton(
+                text = "Use this sound",
+                onClick = { onIntent(RingtonePickerIntent.Confirm) },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
 
+/**
+ * One sound: the whole row is the radio target, with a radio showing the choice and a preview
+ * button that plays or stops the sound.
+ */
 @Composable
 private fun RingtoneRow(
     ringtone: RingtoneItem,
     isSelected: Boolean,
     isPlaying: Boolean,
-    shape: Shape,
+    segment: Segment,
     showDivider: Boolean,
     onSelect: () -> Unit,
     onTogglePreview: (playing: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
-    val ring by animateColorAsState(if (isSelected) colors.accent else colors.textDisabled, label = "radioRing")
-    Column(
+    val colors = BedrockTheme.colors
+    Box(
         modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(colors.card)
-            .pressable(pressedScale = 1f, role = Role.RadioButton, onClick = onSelect)
+            .padding(horizontal = BrSpacing.Gutter)
+            .groupSegment(segment, fill = colors.surface, edge = colors.line)
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                Modifier.size(22.dp).clip(CircleShape).border(2.dp, ring, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                val dot by animateFloatAsState(if (isSelected) 1f else 0f, ObMotion.bouncy(), label = "radioDot")
-                if (dot > 0.01f) {
-                    Box(
-                        Modifier
-                            .graphicsLayer { scaleX = dot; scaleY = dot }
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(colors.accent)
-                    )
-                }
-            }
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    ringtone.name,
-                    style = type.bodyLarge.copy(fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal),
-                    color = if (isSelected) colors.accentLight else colors.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+        ListRow(
+            title = ringtone.name,
+            modifier = Modifier
+                .pressable(
+                    role = Role.RadioButton,
+                    pressedScale = 0.99f,
+                    haptic = if (isSelected) null else HapticFeedbackType.SegmentTick,
+                    onClick = onSelect
                 )
-                if (ringtone.isCustom) {
-                    Text("From device", style = type.label, color = colors.textSecondary)
-                }
-            }
-            Spacer(Modifier.width(12.dp))
-            // While previewing, a soft halo pulses out of the button in time-ish with the sound.
-            val halo by rememberInfiniteTransition(label = "previewHalo").animateFloat(
-                initialValue = 0f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(tween(1100, easing = LinearEasing)),
-                label = "halo"
-            )
-            Box(
-                Modifier
-                    .size(36.dp)
-                    .drawBehind {
-                        if (isPlaying) {
-                            drawCircle(
-                                colors.accent.copy(alpha = 0.35f * (1f - halo)),
-                                radius = size.minDimension / 2f * (1f + 0.6f * halo)
-                            )
-                        }
-                    }
-                    .pressable(pressedScale = 0.86f, haptic = HapticFeedbackType.ContextClick) { onTogglePreview(isPlaying) }
-                    .clip(CircleShape)
-                    .background(if (isPlaying) colors.accentContainerStrong else colors.tile),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    if (isPlaying) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
+                .semantics { selected = isSelected },
+            subtitle = if (ringtone.isCustom) "From device" else null,
+            leading = {
+                // The row carries the radio semantics; the radio itself is only the indicator
+                // (still tappable, doing the same thing), so screen readers hear one control.
+                BrRadio(
+                    selected = isSelected,
+                    onClick = onSelect,
+                    modifier = Modifier.clearAndSetSemantics { }
+                )
+            },
+            trailing = {
+                BrIconButton(
+                    icon = rememberVectorPainter(if (isPlaying) Icons.Rounded.Stop else Icons.Rounded.PlayArrow),
                     contentDescription = if (isPlaying) "Stop preview" else "Preview",
-                    tint = if (isPlaying) colors.accentLight else colors.textSecondary,
-                    modifier = Modifier.size(20.dp)
+                    onClick = { onTogglePreview(isPlaying) },
+                    variant = IconButtonVariant.Tonal,
+                    size = 36.dp,
+                    tint = if (isPlaying) colors.accentSoft else colors.textSecondary
                 )
-            }
-        }
-        if (showDivider) {
-            Box(
-                Modifier
-                    .padding(start = 55.dp, end = 17.dp)
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(colors.divider)
-            )
-        }
+            },
+            divider = showDivider
+        )
+    }
+}
+
+/** Where a row sits in its group, which decides which corners it rounds. */
+private enum class Segment { Single, First, Middle, Last }
+
+/**
+ * Draws this row's slice of one continuous grouped card, matching [ListGroup] (surface fill and a
+ * hairline edge, rounded only at the group's outer corners), so a lazy list can look like a
+ * [ListGroup] without composing every row at once. Each slice draws the group's rounded outline
+ * extended past its own top and bottom and clips it, leaving just its part of the edge.
+ */
+private fun Modifier.groupSegment(segment: Segment, fill: Color, edge: Color): Modifier = drawBehind {
+    val radius = BrShapes.LargeRadius.toPx()
+    val stroke = 1.dp.toPx()
+    val reach = radius * 2
+    val top = if (segment == Segment.First || segment == Segment.Single) 0f else -reach
+    val bottom = if (segment == Segment.Last || segment == Segment.Single) size.height else size.height + reach
+    clipRect {
+        drawRoundRect(
+            color = fill,
+            topLeft = Offset(0f, top),
+            size = Size(size.width, bottom - top),
+            cornerRadius = CornerRadius(radius)
+        )
+        drawRoundRect(
+            color = edge,
+            topLeft = Offset(stroke / 2, top + stroke / 2),
+            size = Size(size.width - stroke, bottom - top - stroke),
+            cornerRadius = CornerRadius(radius - stroke / 2),
+            style = Stroke(stroke)
+        )
     }
 }

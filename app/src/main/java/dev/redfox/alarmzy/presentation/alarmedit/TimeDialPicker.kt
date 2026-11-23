@@ -1,9 +1,10 @@
 package dev.redfox.alarmzy.presentation.alarmedit
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,15 +21,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,39 +37,44 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.redfox.obsidian.effects.glow
-import dev.redfox.obsidian.effects.pressable
-import dev.redfox.obsidian.theme.ObsidianTheme
+import dev.redfox.bedrock.effects.pressable
+import dev.redfox.bedrock.effects.rim
+import dev.redfox.bedrock.motion.BrDurations
+import dev.redfox.bedrock.motion.BrMotion
+import dev.redfox.bedrock.motion.RollingNumber
+import dev.redfox.bedrock.theme.BedrockFontFamily
+import dev.redfox.bedrock.theme.BedrockTheme
+import dev.redfox.bedrock.theme.BrShapes
+import dev.redfox.bedrock.theme.BrSpacing
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.graphics.graphicsLayer
-import dev.redfox.obsidian.motion.ObMotion
-import dev.redfox.obsidian.motion.RollingText
-import dev.redfox.obsidian.motion.popOnSelect
 
 private enum class TimeField { HOUR, MINUTE }
 
 /**
- * Time picker from the design: tappable hour/minute squircle tiles, a vertical a.m./p.m.
- * pill, and a radial dial you tap or drag. Picking an hour on the dial advances to minutes.
- * [hour] is 0–23.
+ * Time picker: tappable hour and minute tiles, a vertical a.m./p.m. toggle, and a radial dial you
+ * tap or drag. Picking an hour on the dial advances to minutes. [hour] is 0–23.
+ *
+ * The active tile sits in a calm accent container; the dial's selection is an accent-tinted lens
+ * riding a critically damped hand, so nothing glows and nothing overshoots. [tileSize] sizes the
+ * hour and minute tiles (smaller inside a dialog); their Light, tabular digits scale with them.
  */
 @Composable
 fun TimeDialPicker(
@@ -77,10 +83,19 @@ fun TimeDialPicker(
     onTimeChange: (hour: Int, minute: Int) -> Unit,
     modifier: Modifier = Modifier,
     dialSize: Dp = 232.dp,
+    tileSize: Dp = 94.dp,
 ) {
     var field by rememberSaveable { mutableStateOf(TimeField.HOUR) }
     val isPm = hour >= 12
     val hour12 = (hour % 12).let { if (it == 0) 12 else it }
+    val colors = BedrockTheme.colors
+    // Bedrock's numeral voice (Inter Light, tabular figures), sized to the tile.
+    val digits = BedrockTheme.typography.numeral.copy(
+        fontFamily = BedrockFontFamily,
+        fontWeight = FontWeight.Light,
+        fontSize = (tileSize.value * 0.46f).sp,
+        lineHeight = (tileSize.value * 0.5f).sp,
+    )
 
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
@@ -88,27 +103,31 @@ fun TimeDialPicker(
                 text = "%02d".format(hour12),
                 active = field == TimeField.HOUR,
                 description = "Hour",
+                size = tileSize,
+                style = digits,
                 onClick = { field = TimeField.HOUR }
             )
             Text(
                 ":",
-                style = ObsidianTheme.typography.numericTile.copy(fontSize = 32.sp),
-                color = ObsidianTheme.colors.textSecondary,
-                modifier = Modifier.padding(horizontal = 10.dp)
+                style = digits,
+                color = colors.textTertiary,
+                modifier = Modifier.padding(horizontal = BrSpacing.XS)
             )
             TimeTile(
                 text = "%02d".format(minute),
                 active = field == TimeField.MINUTE,
                 description = "Minute",
+                size = tileSize,
+                style = digits,
                 onClick = { field = TimeField.MINUTE }
             )
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(BrSpacing.M))
             MeridiemToggle(
                 isPm = isPm,
                 onChange = { pm -> onTimeChange(hour % 12 + if (pm) 12 else 0, minute) }
             )
         }
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(BrSpacing.XL))
         ClockDial(
             showMinutes = field == TimeField.MINUTE,
             hour12 = hour12,
@@ -121,63 +140,105 @@ fun TimeDialPicker(
     }
 }
 
+/** An hour or minute tile. Active: a calm accent container with soft-accent digits, no border. */
 @Composable
-private fun TimeTile(text: String, active: Boolean, description: String, onClick: () -> Unit) {
-    val colors = ObsidianTheme.colors
-    val shape = RoundedCornerShape(24.dp)
-    val bg by animateColorAsState(if (active) colors.accentContainer else colors.tile, label = "tileBg")
-    val fg by animateColorAsState(if (active) colors.accentLight else colors.textPrimary, label = "tileFg")
+private fun TimeTile(
+    text: String,
+    active: Boolean,
+    description: String,
+    size: Dp,
+    style: TextStyle,
+    onClick: () -> Unit,
+) {
+    val colors = BedrockTheme.colors
+    val shape = BrShapes.Large
+    val fill by animateColorAsState(
+        if (active) colors.accentContainer else colors.surfaceRaised,
+        BrMotion.quick(),
+        label = "tileFill"
+    )
+    val edge by animateColorAsState(
+        if (active) Color.Transparent else colors.line,
+        BrMotion.quick(),
+        label = "tileEdge"
+    )
+    val ink by animateColorAsState(
+        if (active) colors.accentSoft else colors.textPrimary,
+        BrMotion.quick(),
+        label = "tileDigits"
+    )
     Box(
         modifier = Modifier
-            .semantics { contentDescription = "$description $text" }
-            .popOnSelect(active, amount = 0.05f)
-            .then(if (active) Modifier.glow(colors.accent.copy(alpha = 0.12f), shape, radius = 15.dp, offsetY = 8.dp) else Modifier)
-            .pressable(pressedScale = 0.94f, haptic = HapticFeedbackType.SegmentTick, onClick = onClick)
-            .size(94.dp)
+            .semantics {
+                contentDescription = "$description $text"
+                selected = active
+            }
+            .pressable(pressedScale = 0.97f, haptic = HapticFeedbackType.SegmentTick, onClick = onClick)
+            .size(size)
             .clip(shape)
-            .background(bg)
-            .border(1.dp, if (active) colors.accentLight.copy(alpha = 0.4f) else colors.border, shape),
+            .background(fill)
+            .border(1.dp, edge, shape),
         contentAlignment = Alignment.Center
     ) {
-        RollingText(text, style = ObsidianTheme.typography.numericTile, color = fg)
+        RollingNumber(text, style = style, color = ink)
     }
 }
 
+/**
+ * A vertical two-segment control: a lighter surfaceHigh lens with a lit rim glides under the
+ * chosen half on a settling spring, like Bedrock's segmented control turned on its side.
+ */
 @Composable
 private fun MeridiemToggle(isPm: Boolean, onChange: (Boolean) -> Unit) {
-    val colors = ObsidianTheme.colors
-    Column(
-        modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(colors.cardInner)
-            .border(1.dp, colors.border, RoundedCornerShape(16.dp))
-            .padding(5.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+    val colors = BedrockTheme.colors
+    val type = BedrockTheme.typography
+    val outer = BrShapes.Medium
+    val inner = BrShapes.concentric(BrShapes.MediumRadius, MeridiemInset)
+    val position = animateFloatAsState(if (isPm) 1f else 0f, BrMotion.settle(), label = "meridiem")
+    Box(
+        Modifier
+            .clip(outer)
+            .background(colors.surfaceRaised)
+            .border(1.dp, colors.line, outer)
+            .padding(MeridiemInset)
     ) {
-        listOf(false to "a.m.", true to "p.m.").forEach { (pm, label) ->
-            val selected = pm == isPm
-            val bg by animateColorAsState(if (selected) colors.accentLight else Color.Transparent, label = "meridiemBg")
-            Box(
-                modifier = Modifier
-                    .popOnSelect(selected, amount = 0.1f)
-                    .pressable(pressedScale = 0.9f, haptic = HapticFeedbackType.SegmentTick) { onChange(pm) }
-                    .clip(CircleShape)
-                    .background(bg)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    label,
-                    style = ObsidianTheme.typography.label.copy(
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                        letterSpacing = 0.sp
-                    ),
-                    color = if (selected) colors.onAccentLight else colors.textSecondary.copy(alpha = 0.8f)
+        Box(
+            Modifier
+                .size(MeridiemWidth, MeridiemHeight)
+                .graphicsLayer { translationY = MeridiemHeight.toPx() * position.value }
+                .clip(inner)
+                .background(colors.surfaceHigh)
+                .rim(inner)
+        )
+        Column {
+            listOf(false to "a.m.", true to "p.m.").forEach { (pm, label) ->
+                val chosen = pm == isPm
+                val tint by animateColorAsState(
+                    if (chosen) colors.textPrimary else colors.textSecondary,
+                    BrMotion.quick(),
+                    label = "meridiemText"
                 )
+                Box(
+                    modifier = Modifier
+                        .size(MeridiemWidth, MeridiemHeight)
+                        .pressable(
+                            role = Role.RadioButton,
+                            pressedScale = 0.94f,
+                            haptic = if (chosen) null else HapticFeedbackType.SegmentTick,
+                        ) { onChange(pm) }
+                        .semantics { selected = chosen },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(label, style = type.labelSmall, color = tint)
+                }
             }
         }
     }
 }
+
+private val MeridiemInset = 4.dp
+private val MeridiemWidth = 56.dp
+private val MeridiemHeight = 40.dp
 
 @Composable
 private fun ClockDial(
@@ -189,10 +250,10 @@ private fun ClockDial(
     onMinutePicked: (Int) -> Unit,
     onGestureEnd: () -> Unit,
 ) {
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
+    val colors = BedrockTheme.colors
+    val type = BedrockTheme.typography
     val haptics = LocalHapticFeedback.current
-    val nodeSize = 34.dp
+    val nodeSize = 36.dp
     val numberInset = 24.dp
 
     // Continuous angle (degrees, 0 = 12 o'clock, clockwise) so the hand takes the short way round.
@@ -202,9 +263,11 @@ private fun ClockDial(
         unwrapped[0] += ((targetDeg - unwrapped[0]) % 360f + 540f) % 360f - 180f
         unwrapped[0]
     }
-    val angle by animateFloatAsState(
+    // Critically damped: quick while a finger leads it, settling when it sweeps on its own.
+    var dragging by remember { mutableStateOf(false) }
+    val angle = animateFloatAsState(
         continuousDeg,
-        animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = if (dragging) BrMotion.quick<Float>() else BrMotion.settle<Float>(),
         label = "dialAngle"
     )
 
@@ -229,11 +292,10 @@ private fun ClockDial(
 
     Box(
         modifier = Modifier
-            .glow(Color.Black.copy(alpha = 0.45f), CircleShape, radius = 25.dp, offsetY = 12.dp)
             .size(size)
             .clip(CircleShape)
-            .background(colors.cardInner)
-            .border(1.dp, colors.border, CircleShape)
+            .background(colors.surfaceRaised)
+            .border(1.dp, colors.line, CircleShape)
             .pointerInput(Unit) {
                 fun pick(pos: Offset) {
                     val dx = pos.x - this.size.width / 2f
@@ -258,6 +320,7 @@ private fun ClockDial(
                 }
                 awaitEachGesture {
                     val down = awaitFirstDown()
+                    dragging = true
                     lastValue.floatValue = -1f
                     pick(down.position)
                     down.consume()
@@ -270,19 +333,21 @@ private fun ClockDial(
                             }
                         }
                     } while (event.changes.any { it.pressed })
+                    dragging = false
                     currentOnGestureEnd()
                 }
             },
         contentAlignment = Alignment.Center
     ) {
-        val handColor = colors.accentLight.copy(alpha = 0.7f)
+        val hand = colors.accentMain
         Canvas(Modifier.size(size)) {
             val c = center
-            val r = this.size.minDimension / 2f - numberInset.toPx()
-            val rad = Math.toRadians(angle.toDouble())
+            // The hand stops at the lens's edge, so it never shows through it.
+            val r = this.size.minDimension / 2f - numberInset.toPx() - nodeSize.toPx() / 2f
+            val rad = Math.toRadians(angle.value.toDouble())
             val end = Offset(c.x + (r * sin(rad)).toFloat(), c.y - (r * cos(rad)).toFloat())
-            drawLine(handColor, c, end, strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
-            drawCircle(colors.accentLight, radius = 5.dp.toPx(), center = c)
+            drawLine(hand.copy(alpha = 0.55f), c, end, strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+            drawCircle(hand, radius = 4.dp.toPx(), center = c)
         }
 
         // Numerals
@@ -290,46 +355,59 @@ private fun ClockDial(
         for (i in 0 until 12) {
             val label = if (showMinutes) "%02d".format(i * 5) else (if (i == 0) "12" else "$i")
             val a = i * 30.0 * PI / 180.0
+            val dirX = sin(a).toFloat()
+            val dirY = -cos(a).toFloat()
             DialLabel(
                 text = label,
-                x = radius * sin(a).toFloat(),
-                y = -radius * cos(a).toFloat(),
+                x = radius * dirX,
+                y = radius * dirY,
                 color = colors.textSecondary,
+                style = type.figure,
                 modifier = Modifier.graphicsLayer {
-                    val t = ((deal.value * DealMillis - i * 22f) / 300f).coerceIn(0f, 1f)
-                    val e = ObMotion.EaseOutEmphasized.transform(t)
-                    alpha = t
-                    scaleX = 0.5f + 0.5f * e
-                    scaleY = scaleX
+                    // Each numeral fades in while drifting a few dp in from the rim: no scale.
+                    val t = ((deal.value * DealMillis - i * DealStaggerMillis) / BrDurations.Swap).coerceIn(0f, 1f)
+                    val e = BrMotion.Calm.transform(t)
+                    val drift = (1f - e) * DealDrift.toPx()
+                    alpha = e
+                    translationX = dirX * drift
+                    translationY = dirY * drift
                 }
             )
         }
 
-        // Selection node riding the hand
-        val rad = angle * PI / 180.0
+        // Selection lens riding the hand: opaque, tinted with the accent, lit along its rim.
         Box(
             modifier = Modifier
-                .offset { IntOffset((radius * sin(rad).toFloat()).roundToPx(), (-radius * cos(rad).toFloat()).roundToPx()) }
-                .glow(colors.accentLight.copy(alpha = 0.3f), CircleShape, radius = 8.dp, offsetY = 3.dp)
+                .offset {
+                    val rad = angle.value * PI / 180.0
+                    IntOffset(
+                        (radius * sin(rad).toFloat()).roundToPx(),
+                        (-radius * cos(rad).toFloat()).roundToPx()
+                    )
+                }
                 .size(nodeSize)
                 .clip(CircleShape)
-                .background(colors.accentLight),
+                .background(colors.surfaceHigh)
+                .background(colors.accentContainerStrong)
+                .rim(CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 if (showMinutes) "%02d".format(minute) else "$hour12",
-                style = type.labelStrong.copy(fontSize = 14.sp, letterSpacing = 0.sp),
-                color = colors.onAccentLight
+                style = type.figure.copy(fontWeight = FontWeight.Medium),
+                color = colors.accentSoft
             )
         }
     }
 }
 
-private const val DealMillis = 560
+private const val DealStaggerMillis = 22
+private const val DealMillis = DealStaggerMillis * 11 + BrDurations.Swap
+private val DealDrift = 6.dp
 
 @Composable
-private fun DialLabel(text: String, x: Dp, y: Dp, color: Color, modifier: Modifier = Modifier) {
+private fun DialLabel(text: String, x: Dp, y: Dp, color: Color, style: TextStyle, modifier: Modifier = Modifier) {
     Box(Modifier.offset(x, y).size(28.dp).then(modifier), contentAlignment = Alignment.Center) {
-        Text(text, style = ObsidianTheme.typography.label.copy(letterSpacing = 0.sp), color = color)
+        Text(text, style = style, color = color)
     }
 }

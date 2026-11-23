@@ -1,15 +1,17 @@
 package dev.redfox.alarmzy.domain.model
 
 /**
- * Intensity of the (always dark) theme's neutral surfaces. [DARK] is the design's base
- * #131316 ramp, [DARKER] the deeper #0E0E11 ramp, [DARKEST] true AMOLED black.
+ * The dark neutral ramp the app sits on: Bedrock's Basalt (warm graphite), Slate (cool) and
+ * Pitch (true black for OLED). Persisted by name.
  */
 enum class DarkVariant(val displayName: String) {
-    DARK("Dark"),
-    DARKER("Darker"),
-    DARKEST("AMOLED");
+    BASALT("Basalt"),
+    SLATE("Slate"),
+    PITCH("Pitch black");
 
     companion object {
-        fun fromName(name: String?): DarkVariant = entries.firstOrNull { it.name == name } ?: DARK
+        val DEFAULT = BASALT
+
+        fun fromName(name: String?): DarkVariant = entries.firstOrNull { it.name == name } ?: DEFAULT
     }
 }

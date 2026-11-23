@@ -19,12 +19,17 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // Obsidian design system, published from github.com/Redfox-OSS/obsidian.
-        maven("https://redfox-oss.github.io/obsidian/maven") {
-            content { includeGroup("dev.redfox") }
-        }
     }
 }
 
-rootProject.name = "Alarmzy"
+rootProject.name = "Alarmzy-Bedrock"
 include(":app")
+
+// The Bedrock design system (github.com/Redfox-OSS/bedrock), built from a sibling checkout:
+// clone it next to this repository (../Bedrock). Gradle builds the library from source and uses
+// it in place of dev.redfox:bedrock, so a change in Bedrock shows up here on the next build.
+includeBuild("../Bedrock") {
+    dependencySubstitution {
+        substitute(module("dev.redfox:bedrock")).using(project(":bedrock"))
+    }
+}

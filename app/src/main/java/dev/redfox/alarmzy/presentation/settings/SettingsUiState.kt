@@ -4,7 +4,7 @@ import dev.redfox.alarmzy.domain.model.AccentColor
 import dev.redfox.alarmzy.domain.model.DarkVariant
 
 data class SettingsUiState(
-    val darkVariant: DarkVariant = DarkVariant.DARK,
+    val darkVariant: DarkVariant = DarkVariant.DEFAULT,
     val accentColor: AccentColor = AccentColor.DEFAULT,
     val defaultRingtoneUri: String? = null,
     val defaultRingtoneName: String = "Default",

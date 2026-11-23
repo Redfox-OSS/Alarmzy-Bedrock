@@ -7,23 +7,17 @@ import android.content.ContextWrapper
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.PhoneAndroid
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -35,16 +29,13 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -53,15 +44,16 @@ import dev.redfox.alarmzy.R
 import dev.redfox.alarmzy.alarm.BackgroundRestrictions
 import dev.redfox.alarmzy.clock.LiveAlertPermissions
 import dev.redfox.alarmzy.clock.LiveAlertStatus
-import dev.redfox.obsidian.components.ObDivider
-import dev.redfox.obsidian.components.ObListRow
-import dev.redfox.obsidian.theme.ObShapes
-import dev.redfox.obsidian.components.PillButton
-import dev.redfox.obsidian.effects.glow
-import dev.redfox.obsidian.motion.popIn
-import dev.redfox.obsidian.effects.pressable
-import dev.redfox.obsidian.theme.ObsidianTheme
-import androidx.compose.material.icons.rounded.WarningAmber
+import dev.redfox.bedrock.components.BrButton
+import dev.redfox.bedrock.components.BrCard
+import dev.redfox.bedrock.components.BrDialogFrame
+import dev.redfox.bedrock.components.ButtonSize
+import dev.redfox.bedrock.components.ButtonVariant
+import dev.redfox.bedrock.components.IconTile
+import dev.redfox.bedrock.components.ListGroup
+import dev.redfox.bedrock.components.ListRow
+import dev.redfox.bedrock.theme.BedrockTheme
+import dev.redfox.bedrock.theme.BrSpacing
 
 /** Live permission status plus the actions to fix each piece. Shared by the home prompt and Settings. */
 class LiveAlertsController internal constructor(
@@ -136,8 +128,17 @@ private const val BbkCopy =
     "On this phone, also turn on \"Show Live Updates on Live Alerts\" in notification settings so timers appear as a Live Alert."
 
 // ---------------------------------------------------------------------------------------------
-// Home prompt (Alarms tab) — asked once; Settings → Live Alerts is the way back.
+// Home prompt (Alarms tab) — asked once; Settings → Live alerts is the way back.
 // ---------------------------------------------------------------------------------------------
+
+/** One checklist step of the home prompt. [done] = null: the state can't be read (BBK toggle). */
+private class PromptStep(
+    val icon: Painter,
+    val title: String,
+    val subtitle: String?,
+    val done: Boolean?,
+    val onClick: () -> Unit,
+)
 
 @Composable
 fun LiveAlertsHomePrompt(
@@ -148,249 +149,235 @@ fun LiveAlertsHomePrompt(
     val controller = rememberLiveAlertsController(onPermissionsChanged)
     // Decide once per composition entry, so the dialog doesn't vanish mid-flow as steps get ticked.
     var visible by remember { mutableStateOf(!asked && controller.status.worthPrompting) }
-    if (!visible) return
     val status = controller.status
     val dismiss = {
         visible = false
         onMarkAsked()
     }
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
+    val colors = BedrockTheme.colors
+    val type = BedrockTheme.typography
 
-    Dialog(onDismissRequest = dismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            modifier = Modifier
-                .popIn()
-                .padding(horizontal = 20.dp)
-                .fillMaxWidth()
-                .clip(ObShapes.CardLarge)
-                .background(colors.card)
-                .border(1.dp, colors.border, ObShapes.CardLarge)
-                .padding(horizontal = 20.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                Modifier
-                    .glow(colors.accent.copy(alpha = 0.3f), ObShapes.Tile, radius = 20.dp)
-                    .size(56.dp)
-                    .clip(ObShapes.Tile)
-                    .background(colors.accentContainer)
-                    .border(1.dp, colors.accentBorder, ObShapes.Tile),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(painterResource(R.drawable.ic_nav_timer), contentDescription = null, tint = colors.accentLight)
-            }
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "See your timers without opening the app",
-                style = type.title,
-                color = colors.textPrimary,
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "Running timers and the stopwatch can live on your lock screen and status bar. A few settings are needed:",
-                style = type.body,
-                color = colors.textSecondary,
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(20.dp))
-
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (Build.VERSION.SDK_INT >= 34) {
-                    PromptStep(
-                        icon = painterResource(R.drawable.ic_alarm),
-                        title = "Allow full-screen alarms",
-                        subtitle = "So a ringing alarm takes over the lock screen",
-                        done = status.fullScreenAllowed,
-                        onClick = controller::fixFullScreen
-                    )
-                }
-                if (Build.VERSION.SDK_INT >= 33 || !status.channelEnabled) {
-                    PromptStep(
-                        icon = painterResource(R.drawable.ic_bell),
-                        title = "Allow notifications",
-                        done = status.notificationsAllowed && status.channelEnabled,
-                        onClick = controller::fixNotifications
-                    )
-                }
-                status.liveUpdatesAllowed?.let { allowed ->
-                    PromptStep(
-                        icon = painterResource(R.drawable.ic_bell_ring),
-                        title = "Allow Live Updates",
-                        done = allowed,
-                        onClick = controller::fixLiveUpdates
-                    )
-                }
-                if (status.showBbkStep) {
-                    PromptStep(
-                        icon = rememberVectorPainter(Icons.Rounded.PhoneAndroid),
-                        title = "Turn on \"Show Live Updates on Live Alerts\"",
-                        subtitle = "In notification settings — needed on this phone for the Live Alert pill",
-                        done = null,
-                        onClick = controller::openBbkSettings
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-            PillButton(
-                text = if (status.somethingMissing) "Not now" else "Done",
-                onClick = dismiss,
-                containerColor = if (status.somethingMissing) colors.tile else colors.accentContainerStrong,
-                contentColor = if (status.somethingMissing) colors.textPrimary else colors.accentLight
+    val alarmIcon = painterResource(R.drawable.ic_alarm)
+    val bellIcon = painterResource(R.drawable.ic_bell)
+    val bellRingIcon = painterResource(R.drawable.ic_bell_ring)
+    val phoneIcon = rememberVectorPainter(Icons.Rounded.PhoneAndroid)
+    val steps = buildList {
+        if (Build.VERSION.SDK_INT >= 34) {
+            add(
+                PromptStep(
+                    icon = alarmIcon,
+                    title = "Allow full-screen alarms",
+                    subtitle = "So a ringing alarm takes over the lock screen",
+                    done = status.fullScreenAllowed,
+                    onClick = controller::fixFullScreen
+                )
             )
         }
+        if (Build.VERSION.SDK_INT >= 33 || !status.channelEnabled) {
+            add(
+                PromptStep(
+                    icon = bellIcon,
+                    title = "Allow notifications",
+                    subtitle = null,
+                    done = status.notificationsAllowed && status.channelEnabled,
+                    onClick = controller::fixNotifications
+                )
+            )
+        }
+        status.liveUpdatesAllowed?.let { allowed ->
+            add(
+                PromptStep(
+                    icon = bellRingIcon,
+                    title = "Allow Live Updates",
+                    subtitle = null,
+                    done = allowed,
+                    onClick = controller::fixLiveUpdates
+                )
+            )
+        }
+        if (status.showBbkStep) {
+            add(
+                PromptStep(
+                    icon = phoneIcon,
+                    title = "Turn on \"Show Live Updates on Live Alerts\"",
+                    subtitle = "In notification settings: needed on this phone for the Live Alert pill",
+                    done = null,
+                    onClick = controller::openBbkSettings
+                )
+            )
+        }
+    }
+
+    // Always composed and driven by [visible], so closing plays the dialog's calm exit.
+    BrDialogFrame(visible = visible, onDismiss = dismiss) {
+        IconTile(
+            painterResource(R.drawable.ic_nav_timer),
+            tint = colors.accentSoft,
+            container = colors.accentContainer,
+            size = 48.dp,
+            iconSize = 22.dp
+        )
+        Spacer(Modifier.height(BrSpacing.L))
+        Text("See your timers without opening the app", style = type.headline, color = colors.textPrimary)
+        Spacer(Modifier.height(BrSpacing.S))
+        Text(
+            "Running timers and the stopwatch can live on your lock screen and status bar. A few settings are needed:",
+            style = type.body,
+            color = colors.textSecondary
+        )
+        Spacer(Modifier.height(BrSpacing.L))
+
+        ListGroup {
+            steps.forEachIndexed { index, step ->
+                PromptStepRow(step, divider = index < steps.lastIndex)
+            }
+        }
+
+        Spacer(Modifier.height(BrSpacing.XL))
+        BrButton(
+            text = if (status.somethingMissing) "Not now" else "Done",
+            onClick = dismiss,
+            modifier = Modifier.fillMaxWidth(),
+            variant = if (status.somethingMissing) ButtonVariant.Tonal else ButtonVariant.Primary,
+            size = ButtonSize.Medium
+        )
     }
 }
 
 /**
- * One checklist step. [done] = null means the state can't be read (BBK toggle): it renders a
- * "Check" action and never a tick.
+ * One checklist row. Done steps show a quiet tick and stop responding; open steps show an
+ * "Allow" button, and the unreadable BBK step a softer "Check" (never a tick). The whole row is
+ * the target too, so the small button never has to be hit exactly.
  */
 @Composable
-private fun PromptStep(
-    icon: Painter,
-    title: String,
-    done: Boolean?,
-    onClick: () -> Unit,
-    subtitle: String? = null,
-) {
-    val colors = ObsidianTheme.colors
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .pressable(enabled = done != true, pressedScale = 0.98f, onClick = onClick)
-            .clip(ObShapes.Card)
-            .background(colors.cardInner)
-            .border(1.dp, colors.border, ObShapes.Card)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            Modifier.size(36.dp).clip(CircleShape).background(colors.tile),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(18.dp))
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, style = ObsidianTheme.typography.labelStrong, color = colors.textPrimary)
-            if (subtitle != null) {
-                Text(subtitle, style = ObsidianTheme.typography.label.copy(fontWeight = FontWeight.Normal), color = colors.textSecondary)
+private fun PromptStepRow(step: PromptStep, divider: Boolean) {
+    val colors = BedrockTheme.colors
+    ListRow(
+        title = step.title,
+        subtitle = step.subtitle,
+        modifier = Modifier.semantics(mergeDescendants = true) {},
+        leading = { IconTile(step.icon, tint = colors.textSecondary) },
+        trailing = {
+            when (step.done) {
+                true -> IconTile(
+                    rememberVectorPainter(Icons.Rounded.Check),
+                    modifier = Modifier.semantics { contentDescription = "Done" },
+                    tint = colors.accentSoft,
+                    container = colors.accentContainerStrong,
+                    size = 28.dp,
+                    iconSize = 16.dp
+                )
+                false -> BrButton("Allow", onClick = step.onClick, variant = ButtonVariant.Tonal, size = ButtonSize.Small)
+                null -> BrButton("Check", onClick = step.onClick, variant = ButtonVariant.Plain, size = ButtonSize.Small)
             }
-        }
-        Spacer(Modifier.width(10.dp))
-        when (done) {
-            true -> Box(
-                Modifier.size(26.dp).clip(CircleShape).background(colors.accentContainerStrong),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Rounded.Check, contentDescription = "Done", tint = colors.accentLight, modifier = Modifier.size(16.dp))
-            }
-            false -> StepPill("Allow", filled = true)
-            null -> StepPill("Check", filled = false)
-        }
-    }
-}
-
-@Composable
-private fun StepPill(text: String, filled: Boolean) {
-    val colors = ObsidianTheme.colors
-    Box(
-        Modifier
-            .clip(CircleShape)
-            .background(if (filled) colors.accent else colors.accentContainer)
-            .padding(horizontal = 12.dp, vertical = 5.dp)
-    ) {
-        Text(
-            text,
-            style = ObsidianTheme.typography.labelStrong,
-            color = if (filled) colors.onAccent else colors.accentLight
-        )
-    }
+        },
+        divider = divider,
+        onClick = if (step.done == true) null else step.onClick
+    )
 }
 
 // ---------------------------------------------------------------------------------------------
-// Settings → "Live Alerts" section content (rows go inside the Settings card)
+// Settings → "Live alerts" section content (rows go inside the Settings ListGroup)
 // ---------------------------------------------------------------------------------------------
 
 private enum class RowStatus { Allowed, Off, Check }
 
+/** The Live alerts rows, for a caller's `ListGroup { }`: one per permission, each opening its fix. */
 @Composable
 fun LiveAlertsSettingsRows(onPermissionsChanged: () -> Unit) {
     val controller = rememberLiveAlertsController(onPermissionsChanged)
     val status = controller.status
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        if (Build.VERSION.SDK_INT >= 34) {
-            ObListRow(
-                title = "Full-screen alarms",
-                subtitle = "Ringing alarm over the lock screen",
-                icon = R.drawable.ic_alarm,
-                onClick = controller::fixFullScreen,
-                trailing = { StatusLabel(if (status.fullScreenAllowed) RowStatus.Allowed else RowStatus.Off) }
-            )
-            ObDivider()
-        }
-        ObListRow(
-            title = "Notifications",
-            subtitle = "Timer and stopwatch notifications",
-            icon = R.drawable.ic_bell,
-            onClick = controller::fixNotifications,
-            trailing = { StatusLabel(if (status.notificationsAllowed && status.channelEnabled) RowStatus.Allowed else RowStatus.Off) }
+    val liveUpdatesAllowed = status.liveUpdatesAllowed
+    if (Build.VERSION.SDK_INT >= 34) {
+        StatusRow(
+            title = "Full-screen alarms",
+            subtitle = "Ringing alarm over the lock screen",
+            icon = painterResource(R.drawable.ic_alarm),
+            status = if (status.fullScreenAllowed) RowStatus.Allowed else RowStatus.Off,
+            divider = true, // Notifications always follows
+            onClick = controller::fixFullScreen
         )
-        status.liveUpdatesAllowed?.let { allowed ->
-            ObDivider()
-            ObListRow(
-                title = "Live Updates",
-                subtitle = "Lock screen, status bar and Now Bar",
-                icon = R.drawable.ic_bell_ring,
-                onClick = controller::fixLiveUpdates,
-                trailing = { StatusLabel(if (allowed) RowStatus.Allowed else RowStatus.Off) }
-            )
-        }
-        if (status.showBbkStep) {
-            ObDivider()
-            ObListRow(
-                title = "Show on Live Alerts",
-                subtitle = "\"Show Live Updates on Live Alerts\" toggle",
-                icon = R.drawable.ic_nav_timer,
-                onClick = controller::openBbkSettings,
-                trailing = { StatusLabel(RowStatus.Check) }
-            )
-        }
+    }
+    StatusRow(
+        title = "Notifications",
+        subtitle = "Timer and stopwatch notifications",
+        icon = painterResource(R.drawable.ic_bell),
+        status = if (status.notificationsAllowed && status.channelEnabled) RowStatus.Allowed else RowStatus.Off,
+        divider = liveUpdatesAllowed != null || status.showBbkStep,
+        onClick = controller::fixNotifications
+    )
+    if (liveUpdatesAllowed != null) {
+        StatusRow(
+            title = "Live Updates",
+            subtitle = "Lock screen, status bar and Now Bar",
+            icon = painterResource(R.drawable.ic_bell_ring),
+            status = if (liveUpdatesAllowed) RowStatus.Allowed else RowStatus.Off,
+            divider = status.showBbkStep,
+            onClick = controller::fixLiveUpdates
+        )
+    }
+    if (status.showBbkStep) {
+        StatusRow(
+            title = "Show on Live Alerts",
+            subtitle = "\"Show Live Updates on Live Alerts\" toggle",
+            icon = painterResource(R.drawable.ic_nav_timer),
+            status = RowStatus.Check,
+            divider = false,
+            onClick = controller::openBbkSettings
+        )
     }
 }
 
-/** Footer under the Live Alerts card. */
+/** Footer under the Live alerts group. */
 @Composable
-fun LiveAlertsSettingsFooter() {
-    Text(
+fun LiveAlertsSettingsFooter(modifier: Modifier = Modifier) {
+    FooterText(
         "Running timers and the stopwatch show on your lock screen and status bar." +
             if (LiveAlertPermissions.isBbkDevice()) " $BbkCopy" else "",
-        style = ObsidianTheme.typography.label.copy(fontWeight = FontWeight.Normal),
-        color = ObsidianTheme.colors.textTertiary,
-        modifier = Modifier.padding(horizontal = 4.dp)
+        modifier
+    )
+}
+
+/** A row that opens a system setting, with where that setting stands at its end. */
+@Composable
+private fun StatusRow(
+    title: String,
+    subtitle: String,
+    icon: Painter,
+    status: RowStatus,
+    divider: Boolean,
+    onClick: () -> Unit,
+) {
+    ListRow(
+        title = title,
+        subtitle = subtitle,
+        leading = { IconTile(icon) },
+        trailing = { StatusText(status) },
+        chevron = true,
+        divider = divider,
+        onClick = onClick
     )
 }
 
 @Composable
-private fun StatusLabel(status: RowStatus) {
-    val colors = ObsidianTheme.colors
+private fun StatusText(status: RowStatus) {
+    val colors = BedrockTheme.colors
     val (text, color) = when (status) {
-        RowStatus.Allowed -> "Allowed" to colors.textSecondary
-        RowStatus.Off -> "Off" to colors.warning // warning, not grey, so it stands out
-        RowStatus.Check -> "Check" to colors.accentLight // unknowable — never "Enabled"
+        RowStatus.Allowed -> "Allowed" to colors.textTertiary
+        RowStatus.Off -> "Off" to colors.caution // caution, not grey, so it stands out
+        RowStatus.Check -> "Check" to colors.accentSoft // unknowable — never "Enabled"
     }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(text, style = ObsidianTheme.typography.labelStrong, color = color)
-        Spacer(Modifier.width(6.dp))
-        Icon(
-            painterResource(R.drawable.ic_chevron_right),
-            contentDescription = null,
-            tint = if (status == RowStatus.Off) colors.warning else colors.textSecondary
-        )
-    }
+    Text(text, style = BedrockTheme.typography.body, color = color, maxLines = 1)
+}
+
+@Composable
+private fun FooterText(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text,
+        style = BedrockTheme.typography.caption,
+        color = BedrockTheme.colors.textTertiary,
+        modifier = modifier.padding(start = BrSpacing.L, end = BrSpacing.L, top = BrSpacing.S)
+    )
 }
 
 /**
@@ -401,35 +388,32 @@ private fun StatusLabel(status: RowStatus) {
 @Composable
 fun FullScreenAlarmWarning(modifier: Modifier = Modifier) {
     val controller = rememberLiveAlertsController(onPermissionsChanged = {})
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .pressable(pressedScale = 0.98f, onClick = controller::fixFullScreen)
-            .clip(ObShapes.Card)
-            .background(colors.warning.copy(alpha = 0.12f))
-            .border(1.dp, colors.warning.copy(alpha = 0.35f), ObShapes.Card)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+    val colors = BedrockTheme.colors
+    val type = BedrockTheme.typography
+    BrCard(
+        modifier = modifier.fillMaxWidth(),
+        onClick = controller::fixFullScreen
     ) {
-        Icon(
-            rememberVectorPainter(Icons.Rounded.WarningAmber),
-            contentDescription = null,
-            tint = colors.warning,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text("Alarms won't open full screen", style = type.labelStrong, color = colors.textPrimary)
-            Text(
-                "Allow full-screen notifications so ringing alarms appear over the lock screen.",
-                style = type.label,
-                color = colors.textSecondary
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(BrSpacing.M)
+        ) {
+            IconTile(
+                rememberVectorPainter(Icons.Rounded.WarningAmber),
+                tint = colors.caution,
+                container = colors.caution.copy(alpha = 0.16f)
             )
+            Column(Modifier.weight(1f)) {
+                Text("Alarms won't open full screen", style = type.label, color = colors.textPrimary)
+                Spacer(Modifier.height(BrSpacing.XXS))
+                Text(
+                    "Allow full-screen notifications so ringing alarms appear over the lock screen.",
+                    style = type.caption,
+                    color = colors.textSecondary
+                )
+            }
+            BrButton("Fix", onClick = controller::fixFullScreen, variant = ButtonVariant.Tonal, size = ButtonSize.Small)
         }
-        Spacer(Modifier.width(12.dp))
-        Text("Fix", style = type.labelStrong, color = colors.warning)
     }
 }
 
@@ -443,6 +427,7 @@ fun rememberFullScreenAlarmsAllowed(): Boolean =
 // the widget page. Only call these when [BackgroundRestrictions.isXiaomi].
 // ---------------------------------------------------------------------------------------------
 
+/** The Autostart and Battery saver rows, for a caller's `ListGroup { }`. */
 @Composable
 fun BackgroundRunRows() {
     val context = LocalContext.current
@@ -455,34 +440,31 @@ fun BackgroundRunRows() {
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        ObListRow(
-            title = "Autostart",
-            subtitle = "Turn on so Alarmzy can restart after the system closes it",
-            icon = R.drawable.ic_alarm,
-            onClick = { BackgroundRestrictions.openAutostart(context) },
-            trailing = { StatusLabel(RowStatus.Check) } // unreadable on HyperOS
-        )
-        ObDivider()
-        ObListRow(
-            title = "Battery saver",
-            subtitle = "Set to \"No restrictions\"",
-            icon = R.drawable.ic_info,
-            onClick = { BackgroundRestrictions.openBatterySaver(context) },
-            // Unrestricted is reliable when true; HyperOS doesn't always mirror it, so never "Off".
-            trailing = { StatusLabel(if (unrestricted) RowStatus.Allowed else RowStatus.Check) }
-        )
-    }
+    StatusRow(
+        title = "Autostart",
+        subtitle = "Turn on so Alarmzy can restart after the system closes it",
+        icon = painterResource(R.drawable.ic_alarm),
+        status = RowStatus.Check, // unreadable on HyperOS
+        divider = true,
+        onClick = { BackgroundRestrictions.openAutostart(context) }
+    )
+    StatusRow(
+        title = "Battery saver",
+        subtitle = "Set to \"No restrictions\"",
+        icon = painterResource(R.drawable.ic_info),
+        // Unrestricted is reliable when true; HyperOS doesn't always mirror it, so never "Off".
+        status = if (unrestricted) RowStatus.Allowed else RowStatus.Check,
+        divider = false,
+        onClick = { BackgroundRestrictions.openBatterySaver(context) }
+    )
 }
 
 @Composable
 fun BackgroundRunFooter(modifier: Modifier = Modifier) {
-    Text(
+    FooterText(
         "HyperOS closes apps in the background, which stops the home-screen widget from updating and can " +
             "delay alarms. Turn on Autostart, set Battery saver to \"No restrictions\", and lock Alarmzy in " +
             "Recents (long-press its card → lock).",
-        style = ObsidianTheme.typography.label.copy(fontWeight = FontWeight.Normal),
-        color = ObsidianTheme.colors.textTertiary,
-        modifier = modifier.padding(horizontal = 4.dp)
+        modifier
     )
 }

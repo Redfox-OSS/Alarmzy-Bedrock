@@ -3,38 +3,39 @@ package dev.redfox.alarmzy.ui.theme
 import androidx.compose.runtime.Composable
 import dev.redfox.alarmzy.domain.model.AccentColor
 import dev.redfox.alarmzy.domain.model.DarkVariant
-import dev.redfox.obsidian.theme.ObsidianAccent
-import dev.redfox.obsidian.theme.ObsidianNeutrals
-import dev.redfox.obsidian.theme.ObsidianTheme
+import dev.redfox.bedrock.theme.BedrockAccent
+import dev.redfox.bedrock.theme.BedrockNeutrals
+import dev.redfox.bedrock.theme.BedrockTheme
 
 /**
- * Alarmzy's root theme: the Obsidian design system (`:obsidian` module) driven by the persisted
- * [AccentColor] / [DarkVariant] settings. Screens read tokens from `ObsidianTheme.colors` /
- * `ObsidianTheme.typography`.
+ * Alarmzy's root theme: the Bedrock design system driven by the persisted [AccentColor] /
+ * [DarkVariant] settings. Screens read tokens from `BedrockTheme.colors` /
+ * `BedrockTheme.typography`.
  */
 @Composable
 fun AlarmzyTheme(
     accentColor: AccentColor = AccentColor.DEFAULT,
-    darkVariant: DarkVariant = DarkVariant.DARK,
+    darkVariant: DarkVariant = DarkVariant.DEFAULT,
     content: @Composable () -> Unit
 ) {
-    ObsidianTheme(
-        accent = accentColor.toObsidian(),
-        neutrals = darkVariant.toObsidian(),
+    BedrockTheme(
+        accent = accentColor.toBedrock(),
+        neutrals = darkVariant.toBedrock(),
         content = content
     )
 }
 
-fun AccentColor.toObsidian(): ObsidianAccent = when (this) {
-    AccentColor.CRIMSON -> ObsidianAccent.Crimson
-    AccentColor.ELECTRIC -> ObsidianAccent.Electric
-    AccentColor.SOLAR -> ObsidianAccent.Solar
-    AccentColor.EMERALD -> ObsidianAccent.Emerald
-    AccentColor.LUMINOUS -> ObsidianAccent.Luminous
+fun AccentColor.toBedrock(): BedrockAccent = when (this) {
+    AccentColor.EMBER -> BedrockAccent.Ember
+    AccentColor.TIDE -> BedrockAccent.Tide
+    AccentColor.MOSS -> BedrockAccent.Moss
+    AccentColor.ROSE -> BedrockAccent.Rose
+    AccentColor.IRIS -> BedrockAccent.Iris
+    AccentColor.SAND -> BedrockAccent.Sand
 }
 
-fun DarkVariant.toObsidian(): ObsidianNeutrals = when (this) {
-    DarkVariant.DARK -> ObsidianNeutrals.Dark
-    DarkVariant.DARKER -> ObsidianNeutrals.Darker
-    DarkVariant.DARKEST -> ObsidianNeutrals.Amoled
+fun DarkVariant.toBedrock(): BedrockNeutrals = when (this) {
+    DarkVariant.BASALT -> BedrockNeutrals.Basalt
+    DarkVariant.SLATE -> BedrockNeutrals.Slate
+    DarkVariant.PITCH -> BedrockNeutrals.Pitch
 }

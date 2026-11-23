@@ -3,6 +3,7 @@ package dev.redfox.alarmzy.presentation.settings.widget
 import android.content.ComponentName
 import android.view.View
 import android.widget.FrameLayout
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,35 +19,44 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -54,50 +64,48 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import dev.redfox.alarmzy.R
 import dev.redfox.alarmzy.alarm.BackgroundRestrictions
-import dev.redfox.alarmzy.presentation.livealerts.BackgroundRunFooter
-import dev.redfox.alarmzy.presentation.livealerts.BackgroundRunRows
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
+import dev.redfox.alarmzy.domain.model.ClockWidgetConfig
 import dev.redfox.alarmzy.domain.model.WeatherInterval
 import dev.redfox.alarmzy.domain.model.WeatherProvider
-import dev.redfox.alarmzy.widget.WeatherError
-import dev.redfox.obsidian.components.ObTextField
-import dev.redfox.obsidian.components.PrimaryButton
-import dev.redfox.alarmzy.domain.model.ClockWidgetConfig
 import dev.redfox.alarmzy.domain.model.WidgetHorizontalAlign
 import dev.redfox.alarmzy.domain.model.WidgetLayout
 import dev.redfox.alarmzy.domain.model.WidgetPart
 import dev.redfox.alarmzy.domain.model.WidgetVerticalAlign
 import dev.redfox.alarmzy.domain.model.WidgetWeather
+import dev.redfox.alarmzy.presentation.livealerts.BackgroundRunFooter
+import dev.redfox.alarmzy.presentation.livealerts.BackgroundRunRows
 import dev.redfox.alarmzy.widget.ClockWidgetRenderer
 import dev.redfox.alarmzy.widget.LaunchableApp
-import dev.redfox.obsidian.components.ChoicePill
-import dev.redfox.obsidian.components.DetailHeader
-import dev.redfox.obsidian.components.DetailHeaderHeight
-import dev.redfox.obsidian.components.ObCard
-import dev.redfox.obsidian.components.ObDivider
-import dev.redfox.obsidian.components.ObListRow
-import dev.redfox.obsidian.components.ObSearchField
-import dev.redfox.obsidian.components.ObSheet
-import dev.redfox.obsidian.components.ObSlider
-import dev.redfox.obsidian.components.ObSwitch
-import dev.redfox.obsidian.components.PillButton
-import dev.redfox.obsidian.components.SectionLabel
-import dev.redfox.obsidian.components.SwitchSize
-import dev.redfox.obsidian.effects.glassSource
-import dev.redfox.obsidian.effects.glow
-import dev.redfox.obsidian.effects.pressable
-import dev.redfox.obsidian.motion.RevealColumn
-import dev.redfox.obsidian.theme.ObShapes
-import dev.redfox.obsidian.theme.ObsidianTheme
-import dev.redfox.obsidian.theme.ScreenGutter
+import dev.redfox.alarmzy.widget.WeatherError
+import dev.redfox.bedrock.components.BrButton
+import dev.redfox.bedrock.components.BrChip
+import dev.redfox.bedrock.components.BrDivider
+import dev.redfox.bedrock.components.BrLargeTitle
+import dev.redfox.bedrock.components.BrSearchField
+import dev.redfox.bedrock.components.BrSheet
+import dev.redfox.bedrock.components.BrSlider
+import dev.redfox.bedrock.components.BrSwitch
+import dev.redfox.bedrock.components.BrTextField
+import dev.redfox.bedrock.components.BrTopBar
+import dev.redfox.bedrock.components.ButtonSize
+import dev.redfox.bedrock.components.ButtonVariant
+import dev.redfox.bedrock.components.IconTile
+import dev.redfox.bedrock.components.ListGroup
+import dev.redfox.bedrock.components.ListRow
+import dev.redfox.bedrock.components.SectionHeader
+import dev.redfox.bedrock.components.rememberTopBarCollapse
+import dev.redfox.bedrock.components.topBarClearance
+import dev.redfox.bedrock.effects.glassSource
+import dev.redfox.bedrock.effects.pressable
+import dev.redfox.bedrock.motion.BrTransitions
+import dev.redfox.bedrock.motion.RevealColumn
+import dev.redfox.bedrock.theme.BedrockTheme
+import dev.redfox.bedrock.theme.BrShapes
+import dev.redfox.bedrock.theme.BrSpacing
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import java.time.ZonedDateTime
 import kotlinx.coroutines.withContext
+import java.time.ZonedDateTime
 import kotlin.math.roundToInt
 
 @Composable
@@ -107,10 +115,12 @@ fun WidgetCustomizeScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
+    val colors = BedrockTheme.colors
+    val type = BedrockTheme.typography
     val config = uiState.config
-    val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + DetailHeaderHeight
+    val scrollState = rememberScrollState()
+    val collapse = rememberTopBarCollapse(scrollState)
+    val title = "Home-screen widget"
 
     // Widgets may have been placed/removed (or apps installed) while we were away.
     LifecycleResumeEffect(Unit) {
@@ -119,201 +129,238 @@ fun WidgetCustomizeScreen(
     }
 
     Box(modifier.fillMaxSize().background(colors.background)) {
-        RevealColumn(
-            modifier = Modifier
+        Column(
+            Modifier
                 .fillMaxSize()
                 .glassSource()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = ScreenGutter)
+                .verticalScroll(scrollState)
                 .padding(
-                    top = topInset + 8.dp,
-                    bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp
-                ),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                    top = topBarClearance(),
+                    bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + BrSpacing.XXL
+                )
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("Preview")
-                WidgetPreview(
-                    config = config,
-                    weather = uiState.weather,
-                    onPartClick = { onIntent(WidgetCustomizeIntent.OpenPicker(it)) }
-                )
-                Text(
-                    if (config.showWeather) "Tap the date, time or weather to choose the app it opens."
-                    else "Tap the date or the time to choose the app it opens.",
-                    style = type.body,
-                    color = colors.textSecondary,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("On your home screen")
-                ObCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)) {
-                    ObListRow(
-                        title = when (uiState.placedCount) {
-                            0 -> "Not added yet"
-                            1 -> "1 widget placed"
-                            else -> "${uiState.placedCount} widgets placed"
-                        },
-                        subtitle = if (uiState.canPinWidget) "Edits apply instantly"
-                        else "Long-press your home screen → Widgets → Alarmzy",
-                        icon = R.drawable.ic_widgets,
-                        trailing = if (uiState.canPinWidget) {
-                            {
-                                PillButton(
-                                    text = "Add",
-                                    containerColor = colors.accentContainerStrong,
-                                    contentColor = colors.accentLight,
-                                    onClick = { onIntent(WidgetCustomizeIntent.AddToHomeScreen) }
-                                )
-                            }
-                        } else null
+            BrLargeTitle(title = title, collapse = collapse)
+            RevealColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = BrSpacing.Gutter),
+                verticalArrangement = Arrangement.spacedBy(BrSpacing.Section)
+            ) {
+                Column {
+                    SectionHeader("Preview")
+                    WidgetPreview(
+                        config = config,
+                        weather = uiState.weather,
+                        onPartClick = { onIntent(WidgetCustomizeIntent.OpenPicker(it)) }
                     )
-                }
-            }
-
-            // HyperOS kills the app in the background, and with it the widget's minute tick.
-            if (uiState.placedCount > 0 && BackgroundRestrictions.isXiaomi()) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    SectionLabel("Keep it updating")
-                    ObCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)) {
-                        BackgroundRunRows()
-                    }
-                    BackgroundRunFooter()
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("Tap actions")
-                ObCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)) {
-                    val parts = WidgetPart.entries.filter { it != WidgetPart.WEATHER || config.showWeather }
-                    parts.forEachIndexed { index, part ->
-                        if (index > 0) ObDivider(Modifier.padding(vertical = 12.dp))
-                        PartAppRow(
-                            part = part,
-                            app = uiState.partApps[part],
-                            isDefault = part in uiState.defaultParts,
-                            onClick = { onIntent(WidgetCustomizeIntent.OpenPicker(part)) }
-                        )
-                    }
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("Size") {
+                    Spacer(Modifier.height(BrSpacing.M))
                     Text(
-                        "${(config.scale * 100).roundToInt()}%",
-                        style = type.labelStrong,
-                        color = colors.textSecondary,
-                        modifier = Modifier.pressable { onIntent(WidgetCustomizeIntent.ResetScale) }
-                    )
-                }
-                ObSlider(
-                    value = config.scale,
-                    onValueChange = { onIntent(WidgetCustomizeIntent.DragScale((it * 20).roundToInt() / 20f)) },
-                    onValueChangeFinished = { onIntent(WidgetCustomizeIntent.CommitScale) },
-                    valueRange = ClockWidgetConfig.MIN_SCALE..ClockWidgetConfig.MAX_SCALE,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
-                )
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("Layout")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    WidgetLayout.entries.forEach { layout ->
-                        ChoicePill(
-                            text = layout.displayName,
-                            selected = layout == config.layout,
-                            onClick = { onIntent(WidgetCustomizeIntent.SetLayout(layout)) }
-                        )
-                    }
-                }
-                if (config.layout == WidgetLayout.VERTICAL) {
-                    Text(
-                        "Date, time and weather on separate lines. Resize the widget taller on your home screen to fit.",
+                        if (config.showWeather) "Tap the date, time or weather to choose the app it opens."
+                        else "Tap the date or the time to choose the app it opens.",
                         style = type.body,
-                        color = colors.textSecondary,
-                        modifier = Modifier.padding(horizontal = 4.dp)
+                        color = colors.textSecondary
                     )
                 }
-            }
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("Horizontal position")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    WidgetHorizontalAlign.entries.forEach { align ->
-                        ChoicePill(
-                            text = align.displayName,
-                            selected = align == config.horizontalAlign,
-                            onClick = { onIntent(WidgetCustomizeIntent.SetHorizontalAlign(align)) }
+                Column {
+                    SectionHeader("On your home screen")
+                    ListGroup {
+                        ListRow(
+                            title = when (uiState.placedCount) {
+                                0 -> "Not added yet"
+                                1 -> "1 widget placed"
+                                else -> "${uiState.placedCount} widgets placed"
+                            },
+                            subtitle = if (uiState.canPinWidget) "Edits apply instantly"
+                            else "Long-press your home screen → Widgets → Alarmzy",
+                            leading = { IconTile(painterResource(R.drawable.ic_widgets)) },
+                            trailing = if (uiState.canPinWidget) {
+                                {
+                                    BrButton(
+                                        text = "Add",
+                                        onClick = { onIntent(WidgetCustomizeIntent.AddToHomeScreen) },
+                                        variant = ButtonVariant.Tonal,
+                                        size = ButtonSize.Small
+                                    )
+                                }
+                            } else null
                         )
                     }
                 }
-            }
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("Vertical position")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    WidgetVerticalAlign.entries.forEach { align ->
-                        ChoicePill(
-                            text = align.displayName,
-                            selected = align == config.verticalAlign,
-                            onClick = { onIntent(WidgetCustomizeIntent.SetVerticalAlign(align)) }
+                // HyperOS kills the app in the background, and with it the widget's minute tick.
+                if (uiState.placedCount > 0 && BackgroundRestrictions.isXiaomi()) {
+                    Column {
+                        SectionHeader("Keep it updating")
+                        ListGroup {
+                            BackgroundRunRows()
+                        }
+                        Spacer(Modifier.height(BrSpacing.M))
+                        BackgroundRunFooter()
+                    }
+                }
+
+                Column {
+                    SectionHeader("Tap actions")
+                    ListGroup {
+                        val parts = WidgetPart.entries.filter { it != WidgetPart.WEATHER || config.showWeather }
+                        parts.forEachIndexed { index, part ->
+                            PartAppRow(
+                                part = part,
+                                app = uiState.partApps[part],
+                                isDefault = part in uiState.defaultParts,
+                                divider = index < parts.lastIndex,
+                                onClick = { onIntent(WidgetCustomizeIntent.OpenPicker(part)) }
+                            )
+                        }
+                    }
+                }
+
+                Column {
+                    val percent = (config.scale * 100).roundToInt()
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = BrSpacing.S, bottom = BrSpacing.M),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Text("Size", style = type.label, color = colors.textSecondary)
+                        // Tapping the value puts the size back to 100%.
+                        Text(
+                            "$percent%",
+                            style = type.figure,
+                            color = colors.textSecondary,
+                            modifier = Modifier
+                                .pressable(pressedScale = 0.94f) { onIntent(WidgetCustomizeIntent.ResetScale) }
+                                .semantics { contentDescription = "$percent%, reset size" }
+                        )
+                    }
+                    BrSlider(
+                        value = config.scale,
+                        onValueChange = { onIntent(WidgetCustomizeIntent.DragScale((it * 20).roundToInt() / 20f)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        valueRange = ClockWidgetConfig.MIN_SCALE..ClockWidgetConfig.MAX_SCALE,
+                        onValueChangeFinished = { onIntent(WidgetCustomizeIntent.CommitScale) }
+                    )
+                }
+
+                Column {
+                    SectionHeader("Layout")
+                    Row(horizontalArrangement = Arrangement.spacedBy(BrSpacing.S)) {
+                        WidgetLayout.entries.forEach { layout ->
+                            BrChip(
+                                label = layout.displayName,
+                                selected = layout == config.layout,
+                                onClick = { onIntent(WidgetCustomizeIntent.SetLayout(layout)) }
+                            )
+                        }
+                    }
+                    AnimatedVisibility(
+                        visible = config.layout == WidgetLayout.VERTICAL,
+                        enter = BrTransitions.expandIn,
+                        exit = BrTransitions.collapseOut
+                    ) {
+                        Text(
+                            "Date, time and weather on separate lines. Resize the widget taller on your home screen to fit.",
+                            style = type.body,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(top = BrSpacing.M)
                         )
                     }
                 }
-            }
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("Style")
-                ObCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)) {
-                    ObListRow(
-                        title = "24-hour clock",
-                        subtitle = if (config.use24Hour) "00:02" else "12:02",
-                        icon = R.drawable.ic_alarm,
-                        onClick = { onIntent(WidgetCustomizeIntent.SetUse24Hour(!config.use24Hour)) },
-                        trailing = {
-                            ObSwitch(
-                                checked = config.use24Hour,
-                                onCheckedChange = { onIntent(WidgetCustomizeIntent.SetUse24Hour(it)) },
-                                size = SwitchSize.Medium
+                Column {
+                    SectionHeader("Horizontal position")
+                    Row(horizontalArrangement = Arrangement.spacedBy(BrSpacing.S)) {
+                        WidgetHorizontalAlign.entries.forEach { align ->
+                            BrChip(
+                                label = align.displayName,
+                                selected = align == config.horizontalAlign,
+                                onClick = { onIntent(WidgetCustomizeIntent.SetHorizontalAlign(align)) }
                             )
                         }
-                    )
-                    ObDivider(Modifier.padding(vertical = 12.dp))
-                    ObListRow(
-                        title = "Bold",
-                        subtitle = "Heavier text, dividers and weather icon",
-                        icon = R.drawable.ic_format_paint,
-                        onClick = { onIntent(WidgetCustomizeIntent.SetBold(!config.bold)) },
-                        trailing = {
-                            ObSwitch(
-                                checked = config.bold,
-                                onCheckedChange = { onIntent(WidgetCustomizeIntent.SetBold(it)) },
-                                size = SwitchSize.Medium
-                            )
-                        }
-                    )
+                    }
                 }
-            }
 
-            WeatherSection(uiState = uiState, onIntent = onIntent)
+                Column {
+                    SectionHeader("Vertical position")
+                    Row(horizontalArrangement = Arrangement.spacedBy(BrSpacing.S)) {
+                        WidgetVerticalAlign.entries.forEach { align ->
+                            BrChip(
+                                label = align.displayName,
+                                selected = align == config.verticalAlign,
+                                onClick = { onIntent(WidgetCustomizeIntent.SetVerticalAlign(align)) }
+                            )
+                        }
+                    }
+                }
+
+                Column {
+                    SectionHeader("Style")
+                    ListGroup {
+                        ListRow(
+                            title = "24-hour clock",
+                            subtitle = if (config.use24Hour) "00:02" else "12:02",
+                            leading = { IconTile(painterResource(R.drawable.ic_alarm)) },
+                            trailing = {
+                                BrSwitch(
+                                    checked = config.use24Hour,
+                                    onCheckedChange = { onIntent(WidgetCustomizeIntent.SetUse24Hour(it)) }
+                                )
+                            },
+                            divider = true,
+                            onClick = { onIntent(WidgetCustomizeIntent.SetUse24Hour(!config.use24Hour)) }
+                        )
+                        ListRow(
+                            title = "Bold",
+                            subtitle = "Heavier text, dividers and weather icon",
+                            leading = { IconTile(painterResource(R.drawable.ic_format_paint)) },
+                            trailing = {
+                                BrSwitch(
+                                    checked = config.bold,
+                                    onCheckedChange = { onIntent(WidgetCustomizeIntent.SetBold(it)) }
+                                )
+                            },
+                            onClick = { onIntent(WidgetCustomizeIntent.SetBold(!config.bold)) }
+                        )
+                    }
+                }
+
+                WeatherSection(uiState = uiState, onIntent = onIntent)
+            }
         }
 
-        DetailHeader(title = "Home-screen widget", onBack = onNavigateBack, modifier = Modifier.align(Alignment.TopCenter))
+        BrTopBar(
+            title = title,
+            collapse = collapse,
+            modifier = Modifier.align(Alignment.TopCenter),
+            onBack = onNavigateBack
+        )
     }
 
-    if (uiState.citySearch.open) {
-        CitySearchSheet(search = uiState.citySearch, provider = uiState.config.weatherProvider, onIntent = onIntent)
-    }
+    // Sheets stay composed and are driven by `visible`, so their exits play in full.
+    CitySearchSheet(
+        visible = uiState.citySearch.open,
+        search = uiState.citySearch,
+        provider = uiState.config.weatherProvider,
+        onIntent = onIntent
+    )
 
-    if (uiState.apiKeySheet.open) {
-        ApiKeySheet(sheet = uiState.apiKeySheet, hasSavedKey = uiState.apiKey != null, onIntent = onIntent)
-    }
+    ApiKeySheet(
+        visible = uiState.apiKeySheet.open,
+        sheet = uiState.apiKeySheet,
+        hasSavedKey = uiState.apiKey != null,
+        onIntent = onIntent
+    )
 
-    uiState.pickerPart?.let { part ->
+    // The picker keeps showing the part it was opened for while it slides away.
+    val pickerPart = uiState.pickerPart
+    val lastPickerPart = remember { arrayOfNulls<WidgetPart>(1) }
+    if (pickerPart != null) lastPickerPart[0] = pickerPart
+    (pickerPart ?: lastPickerPart[0])?.let { part ->
         AppPickerSheet(
+            visible = pickerPart != null,
             part = part,
             uiState = uiState,
             onIntent = onIntent
@@ -339,15 +386,15 @@ private fun WidgetPreview(config: ClockWidgetConfig, weather: WidgetWeather?, on
     }
     Box(
         Modifier
-            .glow(Color.Black.copy(alpha = 0.5f), shape, radius = 24.dp, offsetY = 12.dp)
             .fillMaxWidth()
             // A 4x1 cell for the line; roughly 4x2 for the stack.
             .height(if (config.layout == WidgetLayout.VERTICAL) 200.dp else 132.dp)
             .clip(shape)
             .background(
+                // A stand-in wallpaper, so the widget's own colours read as they would at home.
                 Brush.linearGradient(listOf(Color(0xFF2B3A55), Color(0xFF1B1F2B), Color(0xFF3A2B45)))
             )
-            .border(1.dp, ObsidianTheme.colors.borderStrong, shape)
+            .border(1.dp, BedrockTheme.colors.lineStrong, shape)
             .padding(horizontal = 12.dp, vertical = 16.dp)
     ) {
         // The widget's cell bounds, so alignment changes are visible.
@@ -384,17 +431,24 @@ private fun WidgetPreview(config: ClockWidgetConfig, weather: WidgetWeather?, on
 
 @Composable
 private fun WeatherSection(uiState: WidgetCustomizeUiState, onIntent: (WidgetCustomizeIntent) -> Unit) {
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
+    val colors = BedrockTheme.colors
+    val type = BedrockTheme.typography
     val config = uiState.config
     val provider = config.weatherProvider
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionLabel("Weather")
-        ObCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)) {
-            ObListRow(
+    Column {
+        SectionHeader("Weather")
+        ListGroup {
+            ListRow(
                 title = "Show weather",
                 subtitle = weatherStatusText(uiState),
-                icon = R.drawable.ic_weather_cloud,
+                leading = { IconTile(painterResource(R.drawable.ic_weather_cloud)) },
+                trailing = {
+                    BrSwitch(
+                        checked = config.showWeather,
+                        onCheckedChange = { onIntent(WidgetCustomizeIntent.SetShowWeather(it)) }
+                    )
+                },
+                divider = true,
                 onClick = {
                     when {
                         !config.showWeather -> onIntent(WidgetCustomizeIntent.SetShowWeather(true))
@@ -402,86 +456,80 @@ private fun WeatherSection(uiState: WidgetCustomizeUiState, onIntent: (WidgetCus
                         uiState.weather == null || uiState.weatherError != null -> onIntent(WidgetCustomizeIntent.RefreshWeather)
                         else -> onIntent(WidgetCustomizeIntent.SetShowWeather(false))
                     }
-                },
-                trailing = {
-                    ObSwitch(
-                        checked = config.showWeather,
-                        onCheckedChange = { onIntent(WidgetCustomizeIntent.SetShowWeather(it)) },
-                        size = SwitchSize.Medium
-                    )
                 }
             )
-            ObDivider(Modifier.padding(vertical = 12.dp))
-            ObListRow(
+            ListRow(
                 title = "City",
                 subtitle = config.weatherCity?.displayName ?: "Choose a city",
-                icon = R.drawable.ic_label,
-                onClick = { onIntent(WidgetCustomizeIntent.OpenCitySearch) },
-                trailing = {
-                    Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null, tint = colors.textSecondary)
-                }
+                leading = { IconTile(painterResource(R.drawable.ic_label)) },
+                chevron = true,
+                divider = true,
+                onClick = { onIntent(WidgetCustomizeIntent.OpenCitySearch) }
             )
-            ObDivider(Modifier.padding(vertical = 12.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Provider", style = type.labelStrong, color = colors.textPrimary)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = BrSpacing.L, vertical = BrSpacing.M)) {
+                Text("Provider", style = type.label, color = colors.textPrimary)
+                Spacer(Modifier.height(BrSpacing.M))
+                Row(horizontalArrangement = Arrangement.spacedBy(BrSpacing.S)) {
                     WeatherProvider.entries.forEach { option ->
-                        ChoicePill(
-                            text = option.displayName,
+                        BrChip(
+                            label = option.displayName,
                             selected = option == provider,
                             onClick = { onIntent(WidgetCustomizeIntent.SetProvider(option)) }
                         )
                     }
                 }
             }
+            if (provider.needsApiKey || config.showWeather) BrDivider(inset = BrSpacing.L)
             if (provider.needsApiKey) {
-                ObDivider(Modifier.padding(vertical = 12.dp))
-                ObListRow(
+                ListRow(
                     title = "API key",
                     subtitle = uiState.apiKey?.let { "••••${it.takeLast(4)}" + if (uiState.weatherError == WeatherError.AUTH) " · rejected" else "" }
                         ?: "Not set · tap to add",
-                    icon = R.drawable.ic_tune,
-                    onClick = { onIntent(WidgetCustomizeIntent.OpenApiKeySheet) },
-                    trailing = {
-                        Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null, tint = colors.textSecondary)
-                    }
+                    leading = { IconTile(painterResource(R.drawable.ic_tune)) },
+                    chevron = true,
+                    divider = config.showWeather,
+                    onClick = { onIntent(WidgetCustomizeIntent.OpenApiKeySheet) }
                 )
             }
             if (config.showWeather) {
-                ObDivider(Modifier.padding(vertical = 12.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = BrSpacing.L, vertical = BrSpacing.M)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Update every", style = type.labelStrong, color = colors.textPrimary, modifier = Modifier.weight(1f))
-                        PillButton(
+                        Text("Update every", style = type.label, color = colors.textPrimary, modifier = Modifier.weight(1f))
+                        BrButton(
                             text = if (uiState.weatherRefreshing) "Updating…" else "Update now",
-                            containerColor = colors.accentContainerStrong,
-                            contentColor = colors.accentLight,
-                            onClick = { onIntent(WidgetCustomizeIntent.RefreshWeather) }
+                            onClick = { onIntent(WidgetCustomizeIntent.RefreshWeather) },
+                            variant = ButtonVariant.Tonal,
+                            size = ButtonSize.Small
                         )
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Spacer(Modifier.height(BrSpacing.M))
+                    Row(horizontalArrangement = Arrangement.spacedBy(BrSpacing.S)) {
                         WeatherInterval.entries.forEach { interval ->
-                            ChoicePill(
-                                text = interval.displayName,
+                            BrChip(
+                                label = interval.displayName,
                                 selected = interval == config.weatherInterval,
                                 onClick = { onIntent(WidgetCustomizeIntent.SetWeatherInterval(interval)) }
                             )
                         }
                     }
                 }
-                ObDivider(Modifier.padding(vertical = 12.dp))
+                BrDivider(inset = BrSpacing.L)
                 Row(
-                    Modifier.fillMaxWidth(),
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 54.dp)
+                        .padding(horizontal = BrSpacing.L, vertical = BrSpacing.M),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Units", style = type.labelStrong, color = colors.textPrimary, modifier = Modifier.weight(1f))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ChoicePill(text = "°C", selected = !config.useFahrenheit, onClick = { onIntent(WidgetCustomizeIntent.SetFahrenheit(false)) })
-                        ChoicePill(text = "°F", selected = config.useFahrenheit, onClick = { onIntent(WidgetCustomizeIntent.SetFahrenheit(true)) })
+                    Text("Units", style = type.label, color = colors.textPrimary, modifier = Modifier.weight(1f))
+                    Row(horizontalArrangement = Arrangement.spacedBy(BrSpacing.S)) {
+                        BrChip(label = "°C", selected = !config.useFahrenheit, onClick = { onIntent(WidgetCustomizeIntent.SetFahrenheit(false)) })
+                        BrChip(label = "°F", selected = config.useFahrenheit, onClick = { onIntent(WidgetCustomizeIntent.SetFahrenheit(true)) })
                     }
                 }
             }
         }
+        Spacer(Modifier.height(BrSpacing.M))
         Text(
             when (provider) {
                 WeatherProvider.OPEN_METEO ->
@@ -492,9 +540,8 @@ private fun WeatherSection(uiState: WidgetCustomizeUiState, onIntent: (WidgetCus
             } + "Only the city you search for and its coordinates leave your phone — Alarmzy never " +
                 "reads your location. Weather updates on your chosen interval while the screen is on " +
                 "(never waking the phone); if an update fails, the last reading stays.",
-            style = type.body,
-            color = colors.textSecondary,
-            modifier = Modifier.padding(horizontal = 4.dp)
+            style = type.caption,
+            color = colors.textTertiary
         )
     }
 }
@@ -529,47 +576,59 @@ private fun weatherStatusText(uiState: WidgetCustomizeUiState): String {
 }
 
 @Composable
-private fun CitySearchSheet(search: CitySearchState, provider: WeatherProvider, onIntent: (WidgetCustomizeIntent) -> Unit) {
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
-    val focusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
-    ObSheet(onDismiss = { onIntent(WidgetCustomizeIntent.CloseCitySearch) }, title = "Weather city") {
-        ObSearchField(
-            query = search.query,
-            onQueryChange = { onIntent(WidgetCustomizeIntent.SetCityQuery(it)) },
-            placeholder = "Search for a city",
-            focusRequester = focusRequester,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = ScreenGutter, vertical = 8.dp)
-        )
-        LazyColumn(
-            Modifier.fillMaxWidth().heightIn(min = 160.dp, max = 420.dp),
-            contentPadding = PaddingValues(horizontal = ScreenGutter, vertical = 8.dp)
-        ) {
-            val message = when {
-                search.searching -> "Searching…"
-                search.error == WeatherError.NO_KEY -> "Add your ${provider.displayName} API key first."
-                search.error == WeatherError.AUTH -> "${provider.displayName} rejected the API key."
-                search.error == WeatherError.NETWORK -> "Couldn't reach ${provider.displayName}. Check your connection."
-                search.query.trim().length < 2 -> "Type at least two letters"
-                search.results.isEmpty() -> "No places match “${search.query.trim()}”"
-                else -> null
-            }
-            if (message != null) {
-                item(key = "message") {
-                    Text(message, style = type.body, color = colors.textSecondary, modifier = Modifier.padding(16.dp))
+private fun CitySearchSheet(
+    visible: Boolean,
+    search: CitySearchState,
+    provider: WeatherProvider,
+    onIntent: (WidgetCustomizeIntent) -> Unit
+) {
+    val colors = BedrockTheme.colors
+    val type = BedrockTheme.typography
+    BrSheet(visible = visible, onDismiss = { onIntent(WidgetCustomizeIntent.CloseCitySearch) }, title = "Weather city") {
+        val focusRequester = remember { FocusRequester() }
+        LaunchedEffect(visible) { if (visible) focusRequester.requestFocus() }
+        // The sheet sits over the keyboard: lift its content clear of it.
+        Column(Modifier.fillMaxWidth().imePadding()) {
+            BrSearchField(
+                query = search.query,
+                onQueryChange = { onIntent(WidgetCustomizeIntent.SetCityQuery(it)) },
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                placeholder = "Search for a city"
+            )
+            LazyColumn(
+                Modifier.fillMaxWidth().heightIn(min = 160.dp, max = 420.dp),
+                contentPadding = PaddingValues(vertical = BrSpacing.S)
+            ) {
+                val message = when {
+                    search.searching -> "Searching…"
+                    search.error == WeatherError.NO_KEY -> "Add your ${provider.displayName} API key first."
+                    search.error == WeatherError.AUTH -> "${provider.displayName} rejected the API key."
+                    search.error == WeatherError.NETWORK -> "Couldn't reach ${provider.displayName}. Check your connection."
+                    search.query.trim().length < 2 -> "Type at least two letters"
+                    search.results.isEmpty() -> "No places match “${search.query.trim()}”"
+                    else -> null
                 }
-            }
-            items(search.results, key = { "${it.latitude},${it.longitude}" }) { city ->
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(ObShapes.Tile)
-                        .pressable(pressedScale = 0.985f) { onIntent(WidgetCustomizeIntent.PickCity(city)) }
-                        .padding(horizontal = 12.dp, vertical = 12.dp)
-                ) {
-                    Text(city.name, style = type.labelStrong, color = colors.textPrimary)
-                    if (city.detail.isNotBlank()) Text(city.detail, style = type.body, color = colors.textSecondary)
+                if (message != null) {
+                    item(key = "message") {
+                        Text(
+                            message,
+                            style = type.body,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(horizontal = BrSpacing.M, vertical = BrSpacing.L)
+                        )
+                    }
+                }
+                items(search.results, key = { "${it.latitude},${it.longitude}" }) { city ->
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .pressable(pressedScale = 0.99f) { onIntent(WidgetCustomizeIntent.PickCity(city)) }
+                            .clip(BrShapes.Medium)
+                            .padding(horizontal = BrSpacing.M, vertical = BrSpacing.M)
+                    ) {
+                        Text(city.name, style = type.label, color = colors.textPrimary)
+                        if (city.detail.isNotBlank()) Text(city.detail, style = type.caption, color = colors.textSecondary)
+                    }
                 }
             }
         }
@@ -578,14 +637,22 @@ private fun CitySearchSheet(search: CitySearchState, provider: WeatherProvider, 
 
 /** Paste, verify and save the OpenWeather API key. */
 @Composable
-private fun ApiKeySheet(sheet: ApiKeySheetState, hasSavedKey: Boolean, onIntent: (WidgetCustomizeIntent) -> Unit) {
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
+private fun ApiKeySheet(
+    visible: Boolean,
+    sheet: ApiKeySheetState,
+    hasSavedKey: Boolean,
+    onIntent: (WidgetCustomizeIntent) -> Unit
+) {
+    val colors = BedrockTheme.colors
+    val type = BedrockTheme.typography
     val uriHandler = LocalUriHandler.current
-    ObSheet(onDismiss = { onIntent(WidgetCustomizeIntent.CloseApiKeySheet) }, title = "OpenWeather API key") {
+    BrSheet(visible = visible, onDismiss = { onIntent(WidgetCustomizeIntent.CloseApiKeySheet) }, title = "OpenWeather API key") {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = ScreenGutter, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .padding(bottom = BrSpacing.S),
+            verticalArrangement = Arrangement.spacedBy(BrSpacing.L)
         ) {
             Text(
                 "Use your own free key from openweathermap.org (My account → API keys). It's stored " +
@@ -593,40 +660,45 @@ private fun ApiKeySheet(sheet: ApiKeySheetState, hasSavedKey: Boolean, onIntent:
                 style = type.body,
                 color = colors.textSecondary
             )
-            ObTextField(
+            BrTextField(
                 value = sheet.draft,
                 onValueChange = { onIntent(WidgetCustomizeIntent.SetApiKeyDraft(it)) },
+                modifier = Modifier.fillMaxWidth(),
                 placeholder = "Paste your API key",
-                isError = sheet.check == WeatherError.AUTH,
                 supportingText = when (sheet.check) {
                     WeatherError.AUTH -> "OpenWeather rejected this key. New keys can take up to 2 hours to activate — you can save it anyway."
                     WeatherError.NETWORK -> "Couldn't reach OpenWeather to check the key. You can save it anyway."
                     else -> null
                 },
+                isError = sheet.check == WeatherError.AUTH,
                 keyboardOptions = KeyboardOptions(
                     autoCorrectEnabled = false,
                     keyboardType = KeyboardType.Ascii,
                     imeAction = ImeAction.Done
                 ),
-                keyboardActions = KeyboardActions(onDone = { onIntent(WidgetCustomizeIntent.SaveApiKey()) }),
-                modifier = Modifier.fillMaxWidth()
+                keyboardActions = KeyboardActions(onDone = { onIntent(WidgetCustomizeIntent.SaveApiKey()) })
             )
-            PrimaryButton(
-                text = when {
-                    sheet.checking -> "Checking…"
-                    sheet.check != null -> "Save anyway"
-                    else -> "Check & save"
-                },
-                enabled = sheet.draft.isNotBlank() && !sheet.checking,
-                onClick = { onIntent(WidgetCustomizeIntent.SaveApiKey(skipCheck = sheet.check != null)) }
+            BrButton(
+                text = if (sheet.check != null) "Save anyway" else "Check & save",
+                onClick = { onIntent(WidgetCustomizeIntent.SaveApiKey(skipCheck = sheet.check != null)) },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = sheet.draft.isNotBlank(),
+                loading = sheet.checking
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PillButton(
+            Row(horizontalArrangement = Arrangement.spacedBy(BrSpacing.S)) {
+                BrButton(
                     text = "Get a free key",
-                    onClick = { uriHandler.openUri("https://home.openweathermap.org/api_keys") }
+                    onClick = { uriHandler.openUri("https://home.openweathermap.org/api_keys") },
+                    variant = ButtonVariant.Tonal,
+                    size = ButtonSize.Small
                 )
                 if (hasSavedKey) {
-                    PillButton(text = "Remove key", onClick = { onIntent(WidgetCustomizeIntent.RemoveApiKey) })
+                    BrButton(
+                        text = "Remove key",
+                        onClick = { onIntent(WidgetCustomizeIntent.RemoveApiKey) },
+                        variant = ButtonVariant.Tonal,
+                        size = ButtonSize.Small
+                    )
                 }
             }
         }
@@ -634,110 +706,127 @@ private fun ApiKeySheet(sheet: ApiKeySheetState, hasSavedKey: Boolean, onIntent:
 }
 
 @Composable
-private fun PartAppRow(part: WidgetPart, app: LaunchableApp?, isDefault: Boolean, onClick: () -> Unit) {
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
-    Row(
-        Modifier.fillMaxWidth().pressable(pressedScale = 0.985f, onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        AppIconTile(app?.component, 40.dp)
-        Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f)) {
-            Text(part.displayName, style = type.labelStrong, color = colors.textPrimary)
-            Text(
-                when {
-                    app == null -> "No app found · tap to choose"
-                    isDefault -> "Opens ${app.label} (default)"
-                    else -> "Opens ${app.label}"
-                },
-                style = type.body,
-                color = colors.textSecondary
-            )
-        }
-        Spacer(Modifier.width(12.dp))
-        Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null, tint = colors.textSecondary)
-    }
+private fun PartAppRow(
+    part: WidgetPart,
+    app: LaunchableApp?,
+    isDefault: Boolean,
+    divider: Boolean,
+    onClick: () -> Unit
+) {
+    ListRow(
+        title = part.displayName,
+        subtitle = when {
+            app == null -> "No app found · tap to choose"
+            isDefault -> "Opens ${app.label} (default)"
+            else -> "Opens ${app.label}"
+        },
+        leading = { AppIconTile(app?.component, 36.dp) },
+        chevron = true,
+        divider = divider,
+        onClick = onClick
+    )
 }
 
 @Composable
 private fun AppPickerSheet(
+    visible: Boolean,
     part: WidgetPart,
     uiState: WidgetCustomizeUiState,
     onIntent: (WidgetCustomizeIntent) -> Unit
 ) {
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
+    val colors = BedrockTheme.colors
+    val type = BedrockTheme.typography
     val current = uiState.partApps[part]?.key.takeIf { part !in uiState.defaultParts }
-    ObSheet(onDismiss = { onIntent(WidgetCustomizeIntent.ClosePicker) }, title = "${part.displayName} opens…") {
-        ObSearchField(
-            query = uiState.query,
-            onQueryChange = { onIntent(WidgetCustomizeIntent.SetQuery(it)) },
-            placeholder = "Search apps",
-            modifier = Modifier.fillMaxWidth().padding(horizontal = ScreenGutter, vertical = 8.dp)
-        )
-        LazyColumn(
-            Modifier.fillMaxWidth().heightIn(max = 520.dp),
-            contentPadding = PaddingValues(horizontal = ScreenGutter, vertical = 8.dp)
-        ) {
-            if (uiState.query.isBlank()) {
-                item(key = "default") {
+    BrSheet(visible = visible, onDismiss = { onIntent(WidgetCustomizeIntent.ClosePicker) }, title = "${part.displayName} opens…") {
+        // The sheet sits over the keyboard: lift its content clear of it.
+        Column(Modifier.fillMaxWidth().imePadding()) {
+            BrSearchField(
+                query = uiState.query,
+                onQueryChange = { onIntent(WidgetCustomizeIntent.SetQuery(it)) },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = "Search apps"
+            )
+            LazyColumn(
+                Modifier.fillMaxWidth().heightIn(max = 520.dp),
+                contentPadding = PaddingValues(vertical = BrSpacing.S)
+            ) {
+                if (uiState.query.isBlank()) {
+                    item(key = "default") {
+                        PickerRow(
+                            title = "Default",
+                            subtitle = when (part) {
+                                WidgetPart.DATE -> "Your calendar app"
+                                WidgetPart.CLOCK -> "Alarmzy"
+                                WidgetPart.WEATHER -> "A weather app, if one is installed"
+                            },
+                            component = null,
+                            selected = current == null,
+                            onClick = { onIntent(WidgetCustomizeIntent.AssignApp(null)) }
+                        )
+                    }
+                }
+                if (uiState.appsLoading) {
+                    item(key = "loading") {
+                        Text(
+                            "Loading apps…",
+                            style = type.body,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(horizontal = BrSpacing.M, vertical = BrSpacing.L)
+                        )
+                    }
+                } else if (uiState.filteredApps.isEmpty()) {
+                    item(key = "empty") {
+                        Text(
+                            "No apps match “${uiState.query.trim()}”",
+                            style = type.body,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(horizontal = BrSpacing.M, vertical = BrSpacing.L)
+                        )
+                    }
+                }
+                items(uiState.filteredApps, key = { it.key }) { app ->
                     PickerRow(
-                        title = "Default",
-                        subtitle = when (part) {
-                            WidgetPart.DATE -> "Your calendar app"
-                            WidgetPart.CLOCK -> "Alarmzy"
-                            WidgetPart.WEATHER -> "A weather app, if one is installed"
-                        },
-                        component = null,
-                        selected = current == null,
-                        onClick = { onIntent(WidgetCustomizeIntent.AssignApp(null)) }
+                        title = app.label,
+                        subtitle = null,
+                        component = app.component,
+                        selected = app.key == current,
+                        onClick = { onIntent(WidgetCustomizeIntent.AssignApp(app.key)) }
                     )
                 }
-            }
-            if (uiState.appsLoading) {
-                item(key = "loading") {
-                    Text("Loading apps…", style = type.body, color = colors.textSecondary, modifier = Modifier.padding(16.dp))
-                }
-            } else if (uiState.filteredApps.isEmpty()) {
-                item(key = "empty") {
-                    Text("No apps match “${uiState.query.trim()}”", style = type.body, color = colors.textSecondary, modifier = Modifier.padding(16.dp))
-                }
-            }
-            items(uiState.filteredApps, key = { it.key }) { app ->
-                PickerRow(
-                    title = app.label,
-                    subtitle = null,
-                    component = app.component,
-                    selected = app.key == current,
-                    onClick = { onIntent(WidgetCustomizeIntent.AssignApp(app.key)) }
-                )
             }
         }
     }
 }
 
+/** An app choice in the picker; the current one sits in a quiet accent fill with a tick. */
 @Composable
 private fun PickerRow(title: String, subtitle: String?, component: ComponentName?, selected: Boolean, onClick: () -> Unit) {
-    val colors = ObsidianTheme.colors
-    val type = ObsidianTheme.typography
+    val colors = BedrockTheme.colors
+    val type = BedrockTheme.typography
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(ObShapes.Tile)
-            .background(if (selected) colors.accentContainerStrong else Color.Transparent)
-            .pressable(pressedScale = 0.985f, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .pressable(pressedScale = 0.99f, onClick = onClick)
+            .semantics { this.selected = selected }
+            .clip(BrShapes.Medium)
+            .background(if (selected) colors.accentContainer else Color.Transparent)
+            .heightIn(min = 56.dp)
+            .padding(horizontal = BrSpacing.M, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AppIconTile(component, 36.dp)
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(BrSpacing.M))
         Column(Modifier.weight(1f)) {
-            Text(title, style = type.labelStrong, color = if (selected) colors.accentLight else colors.textPrimary)
-            if (subtitle != null) Text(subtitle, style = type.body, color = colors.textSecondary)
+            Text(title, style = type.label, color = if (selected) colors.accentSoft else colors.textPrimary)
+            if (subtitle != null) Text(subtitle, style = type.caption, color = colors.textSecondary)
         }
         if (selected) {
-            Icon(painterResource(R.drawable.ic_check_bold), contentDescription = "Selected", tint = colors.accentLight)
+            Icon(
+                painterResource(R.drawable.ic_check_bold),
+                contentDescription = "Selected",
+                tint = colors.accentSoft,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }
@@ -760,11 +849,19 @@ private fun AppIconTile(component: ComponentName?, size: Dp) {
             Image(bitmap, contentDescription = null, modifier = Modifier.fillMaxSize())
         } else {
             Box(
-                Modifier.fillMaxSize().clip(ObShapes.Tile).background(ObsidianTheme.colors.tile),
+                Modifier
+                    .fillMaxSize()
+                    .clip(BrShapes.concentric(size / 2 + 2.dp, 6.dp))
+                    .background(BedrockTheme.colors.surfaceHigh),
                 contentAlignment = Alignment.Center
             ) {
                 if (component == null) {
-                    Icon(painterResource(R.drawable.ic_widgets), contentDescription = null, tint = ObsidianTheme.colors.textSecondary)
+                    Icon(
+                        painterResource(R.drawable.ic_widgets),
+                        contentDescription = null,
+                        tint = BedrockTheme.colors.textSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         }

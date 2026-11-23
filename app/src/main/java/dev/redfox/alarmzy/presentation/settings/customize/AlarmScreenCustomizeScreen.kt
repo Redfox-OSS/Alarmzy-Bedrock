@@ -8,8 +8,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,44 +17,45 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.redfox.alarmzy.R
 import dev.redfox.alarmzy.domain.model.AlarmButtonLayout
 import dev.redfox.alarmzy.domain.model.AlarmClockPosition
-import dev.redfox.alarmzy.presentation.alarmringing.AlarmRingingContent
-import dev.redfox.obsidian.components.ChoicePill
-import dev.redfox.obsidian.components.DetailHeader
-import dev.redfox.obsidian.components.DetailHeaderHeight
-import dev.redfox.obsidian.components.PillButton
-import dev.redfox.obsidian.theme.ScreenGutter
-import dev.redfox.obsidian.components.SectionLabel
-import dev.redfox.obsidian.effects.glassSource
-import dev.redfox.obsidian.effects.glow
-import dev.redfox.obsidian.theme.ObsidianTheme
-import kotlin.math.roundToInt
-import dev.redfox.obsidian.motion.RevealColumn
-import dev.redfox.obsidian.components.ObCard
-import dev.redfox.obsidian.components.ObListRow
-import dev.redfox.obsidian.components.ObSwitch
-import dev.redfox.obsidian.components.SwitchSize
-import androidx.compose.foundation.layout.PaddingValues
-import dev.redfox.alarmzy.R
-import androidx.compose.runtime.remember
 import dev.redfox.alarmzy.domain.model.Quotes
+import dev.redfox.alarmzy.presentation.alarmringing.AlarmRingingContent
+import dev.redfox.bedrock.components.BrButton
+import dev.redfox.bedrock.components.BrLargeTitle
+import dev.redfox.bedrock.components.BrSwitch
+import dev.redfox.bedrock.components.BrTopBar
+import dev.redfox.bedrock.components.ButtonSize
+import dev.redfox.bedrock.components.ButtonVariant
+import dev.redfox.bedrock.components.IconTile
+import dev.redfox.bedrock.components.ListGroup
+import dev.redfox.bedrock.components.ListRow
+import dev.redfox.bedrock.components.SectionHeader
+import dev.redfox.bedrock.components.SegmentedControl
+import dev.redfox.bedrock.components.rememberTopBarCollapse
+import dev.redfox.bedrock.components.topBarClearance
+import dev.redfox.bedrock.effects.glassSource
+import dev.redfox.bedrock.motion.RevealColumn
+import dev.redfox.bedrock.theme.BedrockTheme
+import dev.redfox.bedrock.theme.BrShapes
+import dev.redfox.bedrock.theme.BrSpacing
+import kotlin.math.roundToInt
 
 @Composable
 fun AlarmScreenCustomizeScreen(
@@ -63,7 +64,7 @@ fun AlarmScreenCustomizeScreen(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val colors = ObsidianTheme.colors
+    val colors = BedrockTheme.colors
     val pickImageLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -71,97 +72,109 @@ fun AlarmScreenCustomizeScreen(
             onIntent(AlarmScreenCustomizeIntent.PickedBackgroundImage(uri))
         }
     }
-    val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + DetailHeaderHeight
+    val scrollState = rememberScrollState()
+    val collapse = rememberTopBarCollapse(scrollState)
 
     Box(modifier.fillMaxSize().background(colors.background)) {
         RevealColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .glassSource()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = ScreenGutter)
+                .verticalScroll(scrollState)
                 .padding(
-                    top = topInset + 8.dp,
-                    bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp
-                ),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                    top = topBarClearance(),
+                    // Each section already leaves BrSpacing.XXL below itself.
+                    bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                )
         ) {
-            AlarmScreenPreview(
-                backgroundImagePath = uiState.backgroundImagePath,
-                buttonLayout = uiState.buttonLayout,
-                clockPosition = uiState.clockPosition,
-                showQuote = uiState.showQuote
-            )
+            BrLargeTitle(title = "Alarm screen", collapse = collapse)
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("Background")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PillButton(
+            CustomizeSection("Preview") {
+                AlarmScreenPreview(
+                    backgroundImagePath = uiState.backgroundImagePath,
+                    buttonLayout = uiState.buttonLayout,
+                    clockPosition = uiState.clockPosition,
+                    showQuote = uiState.showQuote
+                )
+            }
+
+            CustomizeSection("Background") {
+                Row(horizontalArrangement = Arrangement.spacedBy(BrSpacing.S)) {
+                    BrButton(
                         text = if (uiState.backgroundImagePath != null) "Change photo" else "Choose photo",
-                        containerColor = colors.accentContainerStrong,
-                        contentColor = colors.accentLight,
                         onClick = {
                             pickImageLauncher.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
-                        }
+                        },
+                        variant = ButtonVariant.Tonal,
+                        size = ButtonSize.Medium
                     )
                     if (uiState.backgroundImagePath != null) {
-                        PillButton(
+                        BrButton(
                             text = "Remove photo",
-                            onClick = { onIntent(AlarmScreenCustomizeIntent.RemoveBackgroundImage) }
+                            onClick = { onIntent(AlarmScreenCustomizeIntent.RemoveBackgroundImage) },
+                            variant = ButtonVariant.Plain,
+                            size = ButtonSize.Medium
                         )
                     }
                 }
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("Buttons")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AlarmButtonLayout.entries.forEach { layout ->
-                        ChoicePill(
-                            text = layout.displayName,
-                            selected = layout == uiState.buttonLayout,
-                            onClick = { onIntent(AlarmScreenCustomizeIntent.SetButtonLayout(layout)) }
-                        )
-                    }
-                }
+            CustomizeSection("Buttons") {
+                SegmentedControl(
+                    options = AlarmButtonLayout.entries.map { it.displayName },
+                    selectedIndex = AlarmButtonLayout.entries.indexOf(uiState.buttonLayout),
+                    onSelect = { onIntent(AlarmScreenCustomizeIntent.SetButtonLayout(AlarmButtonLayout.entries[it])) }
+                )
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("Clock position")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AlarmClockPosition.entries.forEach { position ->
-                        ChoicePill(
-                            text = position.displayName,
-                            selected = position == uiState.clockPosition,
-                            onClick = { onIntent(AlarmScreenCustomizeIntent.SetClockPosition(position)) }
-                        )
-                    }
-                }
+            CustomizeSection("Clock position") {
+                SegmentedControl(
+                    options = AlarmClockPosition.entries.map { it.displayName },
+                    selectedIndex = AlarmClockPosition.entries.indexOf(uiState.clockPosition),
+                    onSelect = { onIntent(AlarmScreenCustomizeIntent.SetClockPosition(AlarmClockPosition.entries[it])) }
+                )
             }
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("Quote")
-                ObCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)) {
-                    ObListRow(
+            CustomizeSection("Quote") {
+                ListGroup {
+                    ListRow(
                         title = "Show a wake-up quote",
                         subtitle = "A new one each time an alarm rings",
-                        icon = R.drawable.ic_info,
-                        onClick = { onIntent(AlarmScreenCustomizeIntent.SetShowQuote(!uiState.showQuote)) },
+                        leading = { IconTile(painterResource(R.drawable.ic_info)) },
                         trailing = {
-                            ObSwitch(
+                            BrSwitch(
                                 checked = uiState.showQuote,
-                                onCheckedChange = { onIntent(AlarmScreenCustomizeIntent.SetShowQuote(it)) },
-                                size = SwitchSize.Medium
+                                onCheckedChange = { onIntent(AlarmScreenCustomizeIntent.SetShowQuote(it)) }
                             )
-                        }
+                        },
+                        onClick = { onIntent(AlarmScreenCustomizeIntent.SetShowQuote(!uiState.showQuote)) }
                     )
                 }
             }
         }
 
-        DetailHeader(title = "Alarm Screen", onBack = onNavigateBack, modifier = Modifier.align(Alignment.TopCenter))
+        BrTopBar(
+            title = "Alarm screen",
+            collapse = collapse,
+            modifier = Modifier.align(Alignment.TopCenter),
+            onBack = onNavigateBack
+        )
+    }
+}
+
+/** A titled group on the page: the gutter at the edges, and the section gap below it. */
+@Composable
+private fun CustomizeSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = BrSpacing.Gutter)
+            .padding(bottom = BrSpacing.XXL)
+    ) {
+        SectionHeader(title)
+        content()
     }
 }
 
@@ -187,19 +200,14 @@ private fun AlarmScreenPreview(
     val previewHeight = previewWidth * (realHeightDp.value / realWidthDp.value)
     val scale = previewWidth.value / realWidthDp.value
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        SectionLabel("Preview")
-        Spacer(Modifier.height(12.dp))
+    // A phone in the page, not floating over it: tone and a firm hairline, no shadow.
+    Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Box(
             modifier = Modifier
-                .glow(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(28.dp), radius = 24.dp, offsetY = 12.dp)
                 .width(previewWidth)
                 .height(previewHeight)
-                .clip(RoundedCornerShape(28.dp))
-                .border(1.dp, ObsidianTheme.colors.borderStrong, RoundedCornerShape(28.dp))
+                .clip(BrShapes.XLarge)
+                .border(1.dp, BedrockTheme.colors.lineStrong, BrShapes.XLarge)
         ) {
             AlarmRingingContent(
                 time = "7:00 AM",
